@@ -40,7 +40,6 @@ def main():
 
     db_manager.create_tables()
 
-
     # 初始化交易执行器
     executor = TradingExecutor(db_manager)
 
@@ -48,10 +47,14 @@ def main():
     strategy = DcaExeStrategy(
         price_drop_threshold=0.03,  # 价格下跌3%触发DCA
         take_profit_threshold=0.02,  # 利润达到2%触发止盈
+        max_time_since_last_trade=1,
+        min_time_since_last_trade=0,
         initial_capital=1000,  # 初始资金100,000 USDT
         initial_investment_ratio=0.5,  # 初始投资使用50%的资金
         initial_dca_value=0.1,  # 首次DCA使用剩余资金的10%
         database_manager=db_manager,  # 传入数据库管理器
+        buy_fee_rate=0.001,
+        sell_fee_rate=0.001,
         strategy_name="BTC_USDT_DCA"  # 策略名称
     )
 
@@ -70,7 +73,6 @@ def main():
     print("进行初始化")
     # 执行策略逻辑
     trade_decision = strategy.execute_logic(current_time, current_price)
-
 
     # 如果有交易决策，执行交易
     if trade_decision:

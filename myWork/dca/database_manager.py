@@ -1,5 +1,6 @@
 import pymysql
-import datetime
+# 由于 datetime 导入项未使用，将其移除，不添加新的导入代码
+import time  # 添加此行
 
 
 class DatabaseManager:
@@ -241,5 +242,74 @@ class DatabaseManager:
         except pymysql.Error as e:
             print(f"加载策略状态错误: {e}")
             return None
+        finally:
+            self.disconnect()
+
+    def record_trade(self, inst_id, trade_info, order_id, status):
+        """记录交易到 trade_records 表"""
+        if not self.connect():
+            return False
+
+        try:
+            with self.connection.cursor() as cursor:
+                # 准备交易记录数据
+                query = '''
+                INSERT INTO trade_records 
+                (ordId, instId, side, px, sz, cTime, result)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                '''
+
+                # 获取当前时间戳（毫秒）
+                current_timestamp = int(time.time() * 1000)
+
+                cursor.execute(query, (
+                    order_id,
+                    inst_id,
+                    trade_info['side'],
+                    trade_info.get('price'),
+                    trade_info.get('amount'),
+                    current_timestamp,
+                    f"status: {status}"
+                ))
+
+                self.connection.commit()
+                return True
+        except pymysql.Error as e:
+            print(f"记录交易错误: {e}")
+            self.connection.rollback()
+            return False
+        finally:
+            self.disconnect()
+
+    def update_order_status(self, order_id, status, result=None):
+        """更新订单状态到 trade_records 表"""
+        if not self.connect():
+            return False
+
+        try:
+            with self.connection.cursor() as cursor:
+                # 准备更新数据
+                query = '''
+                UPDATE trade_records 
+                SET result = %s, uTime = %s
+                WHERE ordId = %s
+                '''
+
+                # 获取当前时间戳（毫秒）
+                current_timestamp = int(time.time() * 1000)
+                result_text = result if result else f"status updated to {status}"
+
+                cursor.execute(query, (
+                    result_text,
+                    current_timestamp,
+                    order_id
+                ))
+
+                self.connection.commit()
+                return cursor.rowcount > 0  # 返回是否有记录被更新
+        except pymysql.Error as e:
+            print(f"更新订单状态错误: {e}")
+            self.connection.rollback()
+            return False
         finally:
             self.disconnect()

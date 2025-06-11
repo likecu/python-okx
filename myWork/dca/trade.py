@@ -106,8 +106,8 @@ class TradingExecutor:
                     print(f"订单提交成功，订单ID: {order_id}")
 
                     # 更新订单状态
-                    # self.db_manager.update_order_status(order_id, 'filled')
-                    # self.db_manager.record_trade(inst_id, trade_info, order_id, 'filled')
+                    self.db_manager.update_order_status(order_id, 'filled')
+                    self.db_manager.record_trade(inst_id, trade_info, order_id, 'filled')
                     break
                 else:
                     error = result.get("data", [{}])[0]
@@ -125,8 +125,8 @@ class TradingExecutor:
                         break
             except Exception as e:
                 print(f"下单异常: {str(e)}")
-                # if attempt == max_retries - 1:
-                    # self.db_manager.update_order_status(order_id, 'rejected', str(e))
+                if attempt == max_retries - 1:
+                    self.db_manager.update_order_status(order_id, 'rejected', str(e))
 
             time.sleep(1)  # API调用间隔
 
