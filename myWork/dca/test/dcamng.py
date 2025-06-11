@@ -1,10 +1,12 @@
 import datetime
+import os
 from functools import partial
 from itertools import product
 from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
 from tqdm import tqdm
 
 from myWork.dca.test.mysql_read import MySQLDataReader
@@ -68,13 +70,16 @@ def parameter_range_training(db_config, base_config, param_ranges, start_time, e
     for key, value in best_result['performance'].items():
         print(f"{key}: {value}")
 
+load_dotenv()
+MYSQL_CONN = os.getenv("MYSQL_CONN")
+MYSQL_PASS = os.getenv("MYSQL_PASS")
 
 def main():
     # 配置数据库连接信息
     db_config = {
-        'host': '192.168.123.11',
+        'host': MYSQL_CONN,
         'user': 'root',
-        'password': 'qwe12345',
+        'password': MYSQL_PASS,
         'database': 'trading_db',
         'port': 3306
     }
