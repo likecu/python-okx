@@ -86,12 +86,15 @@ def main():
     print("开始循环")
 
     while True:
-        current_time = datetime.now()
-        current_price = get_realtime_price(inst_id)['bid_px']
-        trade_decision = strategy.execute_logic(current_time, current_price)
-        if trade_decision:
-            executor.execute_trade(inst_id, trade_decision)
-        time.sleep(60)  # 每分钟检查一次
+        try:
+            current_time = datetime.now()
+            current_price = get_realtime_price(inst_id)['bid_px']
+            trade_decision = strategy.execute_logic(current_time, current_price)
+            if trade_decision:
+                executor.execute_trade(inst_id, trade_decision)
+            time.sleep(60)  # 每分钟检查一次
+        except:
+            continue
 
 
 if __name__ == "__main__":
