@@ -48,7 +48,7 @@ def main():
     strategy = DcaExeStrategy(
         price_drop_threshold=0.03,  # 价格下跌3%触发DCA
         take_profit_threshold=0.02,  # 利润达到2%触发止盈
-        initial_capital=100000,  # 初始资金100,000 USDT
+        initial_capital=1000,  # 初始资金100,000 USDT
         initial_investment_ratio=0.5,  # 初始投资使用50%的资金
         initial_dca_value=0.1,  # 首次DCA使用剩余资金的10%
         database_manager=db_manager,  # 传入数据库管理器
@@ -67,9 +67,10 @@ def main():
     current_time = datetime.now()
     price_data = get_realtime_price(inst_id)
     current_price = price_data['bid_px']  # 使用买一价
-
+    print("进行初始化")
     # 执行策略逻辑
     trade_decision = strategy.execute_logic(current_time, current_price)
+
 
     # 如果有交易决策，执行交易
     if trade_decision:
@@ -79,6 +80,8 @@ def main():
             print(f"交易执行成功，订单ID: {order_id}")
         else:
             print("交易执行失败")
+
+    print("开始循环")
 
     while True:
         current_time = datetime.now()

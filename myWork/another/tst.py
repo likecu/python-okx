@@ -1,7 +1,9 @@
 import csv
+import os
 import time
 
 import requests
+from dotenv import load_dotenv
 
 from myWork.another.all import process_trade_records
 
@@ -59,16 +61,21 @@ import csv
 import pymysql
 from pymysql import Error
 from datetime import datetime
+load_dotenv()
+
+# 获取配置
+MYSQL_CONN = os.getenv("MYSQL_CONN")
+MYSQL_PASS = os.getenv("MYSQL_PASS")
 
 
 def create_connection():
     """创建与MySQL数据库的连接"""
     try:
         connection = pymysql.connect(
-            host='localhost',
+            host=MYSQL_CONN,
             port=3306,
             user='root',
-            password='qwe12345',
+            password=MYSQL_PASS,
             database='trading_db',
             cursorclass=pymysql.cursors.DictCursor
         )

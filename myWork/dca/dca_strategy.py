@@ -51,32 +51,32 @@ class DcaExeStrategy:
         self.strategy_name = strategy_name or str(uuid.uuid4())  # 默认使用UUID作为策略名称
         self.strategy_id = None
 
-    def execute_logic(self, current_time, current_price):
+    def execute_logic(self, current_time, current_price, inst_id=None):
         """执行交易逻辑并返回交易决策"""
         # 如果没有持仓，创建初始仓位
         if self.portfolio['position'] == 0:
-            trade_info = self._create_initial_position(current_time, current_price)
+            trade_info = self._create_initial_position(current_time, current_price, inst_id)
             if trade_info and self.database_manager:
-                self._save_state_and_trade(trade_info)
+                self._save_state_and_trade(trade_info, inst_id)
             return trade_info
 
         # 检查是否满足止盈条件
         if self._should_take_profit(current_price):
-            trade_info = self._create_take_profit_order(current_time, current_price)
+            trade_info = self._create_take_profit_order(current_time, current_price, inst_id)
             if trade_info and self.database_manager:
-                self._save_state_and_trade(trade_info)
+                self._save_state_and_trade(trade_info, inst_id)
             return trade_info
 
         # 检查是否满足DCA条件
         if self._should_dca(current_time, current_price):
-            trade_info = self._create_dca_order(current_time, current_price)
+            trade_info = self._create_dca_order(current_time, current_price, inst_id)
             if trade_info and self.database_manager:
-                self._save_state_and_trade(trade_info)
+                self._save_state_and_trade(trade_info, inst_id)
             return trade_info
 
         return None
 
-    def _save_state_and_trade(self, trade_info):
+    def _save_state_and_trade(self, trade_info, inst_id=None):
         """保存策略状态和交易记录到数据库"""
         if not self.database_manager:
             return
@@ -92,6 +92,9 @@ class DcaExeStrategy:
 
         # 保存交易记录
         if self.strategy_id:
+            # 添加inst_id到交易信息中
+            trade_info['inst_id'] = inst_id
+            trade_info['strategy_id'] = self.strategy_id
             self.database_manager.save_trade_record(self.strategy_id, trade_info)
 
     def _get_strategy_params(self):
@@ -114,6 +117,7 @@ class DcaExeStrategy:
             print("未提供数据库管理器，无法加载状态")
             return False
 
+        # 修复：正确调用load_strategy_state方法，只传递strategy_name参数
         state_data = self.database_manager.load_strategy_state(self.strategy_name)
         if not state_data:
             print(f"未找到策略 '{self.strategy_name}' 的状态记录，将使用默认参数")
@@ -158,7 +162,7 @@ class DcaExeStrategy:
         print(f"成功从数据库加载策略 '{self.strategy_name}' 的状态")
         return True
 
-    def _create_initial_position(self, current_time, current_price):
+    def _create_initial_position(self, current_time, current_price, inst_id=None):
         """创建初始仓位"""
         # 使用设定比例的资金建立初始仓位
         amount_to_invest = self.portfolio['cash'] * self.initial_investment_ratio
@@ -182,7 +186,8 @@ class DcaExeStrategy:
             'portfolio_value': self.portfolio['cash'] + self.portfolio['position'] * current_price,
             'fee': fee,
             'amount': total_amount,
-            'side': 'buy'
+            'side': 'buy',
+            'inst_id': inst_id  # 添加交易对信息
         }
 
         # 更新投资组合
@@ -229,7 +234,7 @@ class DcaExeStrategy:
         # 如果价格下跌超过阈值或者无交易时间超过随机时间阈值，则执行DCA
         return (price_drop >= self.price_drop_threshold) or (time_since_last_trade >= random_time_threshold)
 
-    def _create_dca_order(self, current_time, current_price):
+    def _create_dca_order(self, current_time, current_price, inst_id=None):
         """创建DCA订单"""
         # 首次DCA时记录金额
         if self.initial_dca_amount is None:
@@ -271,7 +276,8 @@ class DcaExeStrategy:
             'dca_amount': amount_to_invest,
             'fee': fee,
             'amount': total_amount,
-            'side': 'buy'
+            'side': 'buy',
+            'inst_id': inst_id  # 添加交易对信息
         }
 
         # 更新投资组合
@@ -284,7 +290,7 @@ class DcaExeStrategy:
         self.trades.append(trade_info)
         return trade_info
 
-    def _create_take_profit_order(self, current_time, current_price):
+    def _create_take_profit_order(self, current_time, current_price, inst_id=None):
         """创建止盈订单"""
         # 计算持仓价值
         position_value = self.portfolio['position'] * current_price
@@ -309,7 +315,8 @@ class DcaExeStrategy:
             'portfolio_value': self.portfolio['cash'] + actual_income,
             'fee': fee,
             'amount': position_value,
-            'side': 'sell'
+            'side': 'sell',
+            'inst_id': inst_id  # 添加交易对信息
         }
 
         # 更新投资组合

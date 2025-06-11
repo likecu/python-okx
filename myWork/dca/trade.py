@@ -1,7 +1,30 @@
 import time
 from typing import Dict, Optional
 
+from pandas.io.formats.format import get_precision
+
 from myWork.another.all import trade_api, get_instrument_info, get_realtime_price
+
+
+def _get_precision(value: float) -> int:
+    """获取数值的小数位数精度"""
+    value_str = str(value)
+    # 处理科学计数法表示的数字
+    if 'e' in value_str.lower():
+        # 转换为标准格式
+        value_str = format(value, 'f')
+    if '.' in value_str:
+        decimal_part = value_str.split('.')[1]
+        # 移除末尾的零
+        decimal_part = decimal_part.rstrip('0')
+        return len(decimal_part)
+    return 0
+
+
+def format_number(value: float, precision: int) -> str:
+    """根据精度格式化数字"""
+    # 使用格式化字符串确保小数位数正确
+    return f"{value:.{precision}f}"
 
 
 class TradingExecutor:
@@ -32,7 +55,7 @@ class TradingExecutor:
 
         # 确保价格符合精度要求
         tick_sz = float(instrument_info.get('tickSz', '0.01'))
-        adjusted_px = round(price, self._get_precision(tick_sz))
+        adjusted_px = round(price, _get_precision(tick_sz))
 
         # 确定交易数量
         if trade_info['side'] == 'buy':
@@ -46,8 +69,11 @@ class TradingExecutor:
                 return None
 
             # 调整数量精度
-            sz_precision = self._get_precision(min_sz)
-            final_sz = round(sz, sz_precision)
+            sz_precision = _get_precision(min_sz)
+            # 先四舍五入到指定精度
+            rounded_sz = round(sz, sz_precision)
+            # 然后格式化为字符串
+            final_sz = format_number(rounded_sz, sz_precision)
         else:  # sell
             # 卖出时，使用当前持仓量
             final_sz = trade_info['position']
@@ -59,12 +85,12 @@ class TradingExecutor:
             "side": trade_info['side'],
             "ccy": "USDT",
             "ordType": "limit",
-            "sz": f"{final_sz:.8f}",  # 数量精度
-            "px": f"{adjusted_px:.8f}"  # 价格精度
+            "sz": final_sz,  # 数量精度
+            "px": adjusted_px  # 价格精度
         }
 
         # 记录初始订单
-        self.db_manager.record_trade(inst_id, trade_info, status='pending')
+        # self.db_manager.record_trade(inst_id, trade_info, status='pending')
 
         # 执行下单
         max_retries = 3
@@ -80,8 +106,8 @@ class TradingExecutor:
                     print(f"订单提交成功，订单ID: {order_id}")
 
                     # 更新订单状态
-                    self.db_manager.update_order_status(order_id, 'filled')
-                    self.db_manager.record_trade(inst_id, trade_info, order_id, 'filled')
+                    # self.db_manager.update_order_status(order_id, 'filled')
+                    # self.db_manager.record_trade(inst_id, trade_info, order_id, 'filled')
                     break
                 else:
                     error = result.get("data", [{}])[0]
@@ -99,16 +125,9 @@ class TradingExecutor:
                         break
             except Exception as e:
                 print(f"下单异常: {str(e)}")
-                if attempt == max_retries - 1:
-                    self.db_manager.update_order_status(order_id, 'rejected', str(e))
+                # if attempt == max_retries - 1:
+                    # self.db_manager.update_order_status(order_id, 'rejected', str(e))
 
             time.sleep(1)  # API调用间隔
 
         return order_id
-
-    def _get_precision(self, value: float) -> int:
-        """获取数值的小数位数精度"""
-        value_str = str(value)
-        if '.' in value_str:
-            return len(value_str.split('.')[1])
-        return 0
