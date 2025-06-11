@@ -3,7 +3,8 @@ import time
 from datetime import datetime
 
 from dotenv import load_dotenv
-from okx import MarketData, PublicData
+import okx.MarketData as MarketData
+import okx.PublicData as PublicData
 from okx.Trade import TradeAPI
 
 from myWork.another.all import get_realtime_price
