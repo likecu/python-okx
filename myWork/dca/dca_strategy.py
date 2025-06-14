@@ -161,7 +161,7 @@ class DcaExeStrategy:
         self.initial_dca_amount = state_data['initial_dca_amount']
 
         # 加载交易记录
-        self.trades = state_data['trades']
+        self.trades = list(state_data['trades'])
 
         # 保存strategy_id
         self.strategy_id = state_data['strategy_id']

@@ -1,4 +1,8 @@
 import numpy as np
+import pandas as pd
+import torch
+
+from myWork.model.prepare_data import calculate_rsi
 
 
 def backtest_strategy(
@@ -153,3 +157,5 @@ def calculate_ma_signals(df, short_window=5, long_window=20):
     df['ma_long'] = df['c'].rolling(long_window).mean()
     df['signal'] = np.where(df['ma_short'] > df['ma_long'], 1, np.where(df['ma_short'] < df['ma_long'], -1, 0))
     return df.dropna(subset=['ma_short', 'ma_long']).reset_index(drop=True)
+
+

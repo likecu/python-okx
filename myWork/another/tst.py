@@ -1,4 +1,3 @@
-import csv
 import os
 import time
 
@@ -54,13 +53,9 @@ def get_data(user_name):
     # return response_json
 
 
-
-
-
-import csv
 import pymysql
 from pymysql import Error
-from datetime import datetime
+
 load_dotenv()
 
 # 获取配置

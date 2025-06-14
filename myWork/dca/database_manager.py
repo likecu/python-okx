@@ -102,38 +102,83 @@ class DatabaseManager:
 
         try:
             with self.connection.cursor() as cursor:
-                # 插入新的策略状态记录
-                query = '''
-                INSERT INTO dca_strategy_state 
-                (strategy_name, price_drop_threshold, max_time_since_last_trade, 
-                 min_time_since_last_trade, take_profit_threshold, initial_capital, 
-                 initial_investment_ratio, initial_dca_value, buy_fee_rate, sell_fee_rate,
-                 cash_balance, position, avg_price, last_trade_time, last_trade_price, 
-                 peak_value, initial_dca_amount)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                '''
+                # 检查策略是否已存在
+                cursor.execute("SELECT id FROM dca_strategy_state WHERE strategy_name = %s", (strategy_name,))
+                result = cursor.fetchone()
 
-                cursor.execute(query, (
-                    strategy_name,
-                    strategy_params['price_drop_threshold'],
-                    strategy_params['max_time_since_last_trade'],
-                    strategy_params['min_time_since_last_trade'],
-                    strategy_params['take_profit_threshold'],
-                    strategy_params['initial_capital'],
-                    strategy_params['initial_investment_ratio'],
-                    strategy_params['initial_dca_value'],
-                    strategy_params['buy_fee_rate'],
-                    strategy_params['sell_fee_rate'],
-                    portfolio['cash'],
-                    portfolio['position'],
-                    portfolio['avg_price'],
-                    portfolio['last_trade_time'],
-                    portfolio['last_trade_price'],
-                    portfolio['peak_value'],
-                    initial_dca_amount
-                ))
-
-                strategy_id = cursor.lastrowid
+                if result:
+                    # 更新现有策略
+                    strategy_id = result[0]
+                    query = '''
+                    UPDATE dca_strategy_state SET
+                    price_drop_threshold = %s,
+                    max_time_since_last_trade = %s,
+                    min_time_since_last_trade = %s,
+                    take_profit_threshold = %s,
+                    initial_capital = %s,
+                    initial_investment_ratio = %s,
+                    initial_dca_value = %s,
+                    buy_fee_rate = %s,
+                    sell_fee_rate = %s,
+                    cash_balance = %s,
+                    position = %s,
+                    avg_price = %s,
+                    last_trade_time = %s,
+                    last_trade_price = %s,
+                    peak_value = %s,
+                    initial_dca_amount = %s
+                    WHERE id = %s
+                    '''
+                    cursor.execute(query, (
+                        strategy_params['price_drop_threshold'],
+                        strategy_params['max_time_since_last_trade'],
+                        strategy_params['min_time_since_last_trade'],
+                        strategy_params['take_profit_threshold'],
+                        strategy_params['initial_capital'],
+                        strategy_params['initial_investment_ratio'],
+                        strategy_params['initial_dca_value'],
+                        strategy_params['buy_fee_rate'],
+                        strategy_params['sell_fee_rate'],
+                        portfolio['cash'],
+                        portfolio['position'],
+                        portfolio['avg_price'],
+                        portfolio['last_trade_time'],
+                        portfolio['last_trade_price'],
+                        portfolio['peak_value'],
+                        initial_dca_amount,
+                        strategy_id
+                    ))
+                else:
+                    # 插入新策略
+                    query = '''
+                    INSERT INTO dca_strategy_state 
+                    (strategy_name, price_drop_threshold, max_time_since_last_trade, 
+                     min_time_since_last_trade, take_profit_threshold, initial_capital, 
+                     initial_investment_ratio, initial_dca_value, buy_fee_rate, sell_fee_rate,
+                     cash_balance, position, avg_price, last_trade_time, last_trade_price, 
+                     peak_value, initial_dca_amount)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    '''
+                    cursor.execute(query, (
+                        strategy_name,
+                        strategy_params['price_drop_threshold'],
+                        strategy_params['max_time_since_last_trade'],
+                        strategy_params['min_time_since_last_trade'],
+                        strategy_params['take_profit_threshold'],
+                        strategy_params['initial_capital'],
+                        strategy_params['initial_investment_ratio'],
+                        strategy_params['initial_dca_value'],
+                        strategy_params['buy_fee_rate'],
+                        strategy_params['sell_fee_rate'],
+                        portfolio['cash'],
+                        portfolio['position'],
+                        portfolio['avg_price'],
+                        portfolio['last_trade_time'],
+                        portfolio['last_trade_price'],
+                        portfolio['peak_value'],
+                        initial_dca_amount
+                    ))
+                    strategy_id = cursor.lastrowid
                 self.connection.commit()
                 return strategy_id
         except pymysql.Error as e:

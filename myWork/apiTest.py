@@ -14,7 +14,7 @@ from tqdm import tqdm
 # ======================
 CONFIG = {
     "API_ENV": "0",  # 0: 实盘, 1: 模拟盘
-    "INST_ID": "SUI-USDT",  # 交易对
+    "INST_ID": "BTC-USDT",  # 交易对
     "BAR": "1m",  # 时间粒度 (1s/1m/3m/5m/15m/30m/1H/2H/4H/6H/12H/1D等)
     "LIMIT": 100,  # 每页数据量 (最大100)
     "TIME_RANGE_DAYS": 1500,  # 时间范围 (天数)
@@ -26,7 +26,7 @@ CONFIG = {
     "MAX_RETRIES": 5,  # API请求最大重试次数
     "RETRY_DELAY": 5,  # 重试前等待秒数 (基础值)
     "RANDOM_DELAY": 3,  # 随机延迟上限 (避免请求风暴)
-    "MYSQL_TABLE": "sorted_history_sui"  # MySQL表名
+    "MYSQL_TABLE": "sorted_history"  # MySQL表名
 }
 
 load_dotenv()
@@ -105,8 +105,8 @@ def save_to_mysql(df):
             # 准备SQL语句
             sql = f"""
             INSERT INTO {CONFIG['MYSQL_TABLE']} 
-            (ts, open, high, low, close, volume, vol_ccy, vol_ccy_quote, confirm)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (ts, open, high, low, close, volume, vol_ccy, vol_ccy_quote, confirm,currency)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,%s)
             ON DUPLICATE KEY UPDATE
             open = VALUES(open),
             high = VALUES(high),
@@ -115,7 +115,8 @@ def save_to_mysql(df):
             volume = VALUES(volume),
             vol_ccy = VALUES(vol_ccy),
             vol_ccy_quote = VALUES(vol_ccy_quote),
-            confirm = VALUES(confirm)
+            confirm = VALUES(confirm),
+            currency = VALUES(currency)
             """
 
             # 准备数据
@@ -130,7 +131,8 @@ def save_to_mysql(df):
                     row['volume'],
                     row['vol_ccy'],
                     row['vol_ccy_quote'],
-                    row['confirm']
+                    row['confirm'],
+                    CONFIG['INST_ID']
                 ))
 
             # 批量插入数据
