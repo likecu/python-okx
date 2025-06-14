@@ -5,6 +5,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 # from okx.Trade import TradeAPI
 
+import sys
+from pathlib import Path
+# Add project root to Python path
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from myWork.another.all import get_realtime_price
 from myWork.dca.database_manager import DatabaseManager
 from myWork.dca.dca_strategy import DcaExeStrategy
