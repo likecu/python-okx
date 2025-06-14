@@ -106,7 +106,7 @@ class DatabaseManager:
                 cursor.execute("SELECT id FROM dca_strategy_state WHERE strategy_name = %s", (strategy_name,))
                 result = cursor.fetchone()
 
-                if result:
+                if result is not None:
                     # 更新现有策略
                     strategy_id = result[0]
                     query = '''
