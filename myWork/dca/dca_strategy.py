@@ -90,8 +90,15 @@ class DcaExeStrategy:
                 self.initial_dca_amount
             )
 
-        # 保存交易记录
+        # 更新策略状态并保存交易记录
         if self.strategy_id:
+            # 更新当前策略状态
+            self.database_manager.save_strategy_state(
+                self.strategy_name,
+                self._get_strategy_params(),
+                self.portfolio,
+                self.initial_dca_amount
+            )
             # 添加inst_id到交易信息中
             trade_info['inst_id'] = inst_id
             trade_info['strategy_id'] = self.strategy_id
@@ -228,8 +235,15 @@ class DcaExeStrategy:
         else:
             time_since_last_trade = float('inf')
 
-        # 随机选择一个介于min和max之间的时间阈值
-        random_time_threshold = random.uniform(self.min_time_since_last_trade, self.max_time_since_last_trade)
+        # 使用上次交易时间作为种子生成固定随机阈值，确保间隔均匀分布
+        if self.portfolio['last_trade_time']:
+            # 将时间戳转换为整数作为随机种子
+            seed = int(self.portfolio['last_trade_time'].timestamp())
+            random.seed(seed)
+            random_time_threshold = random.uniform(self.min_time_since_last_trade, self.max_time_since_last_trade)
+            print("当前选择的时间阈值", random_time_threshold, "小时，已过去", time_since_last_trade, "小时")
+        else:
+            random_time_threshold = 0
 
         # 如果价格下跌超过阈值或者无交易时间超过随机时间阈值，则执行DCA
         return (price_drop >= self.price_drop_threshold) or (time_since_last_trade >= random_time_threshold)

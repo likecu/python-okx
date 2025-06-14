@@ -1,8 +1,6 @@
 import time
 from typing import Dict, Optional
 
-from pandas.io.formats.format import get_precision
-
 from myWork.another.all import trade_api, get_instrument_info, get_realtime_price
 
 
@@ -81,7 +79,7 @@ class TradingExecutor:
         # 构造交易参数
         trade_params = {
             "instId": inst_id,
-            "tdMode": "isolated",
+            "tdMode": "cash",
             "side": trade_info['side'],
             "ccy": "USDT",
             "ordType": "limit",
@@ -99,7 +97,7 @@ class TradingExecutor:
         for attempt in range(max_retries):
             try:
                 print(f"[{attempt + 1}/{max_retries}] 提交订单: {trade_params}")
-                result = trade_api.place_order(**trade_params)
+                result = trade_api.set_order(**trade_params)
 
                 if result["code"] == "0" and len(result.get("data", [])) > 0:
                     order_id = result["data"][0]["ordId"]

@@ -3,8 +3,9 @@ import time
 from typing import List, Dict, Optional
 import os
 from dotenv import load_dotenv
-from okx.Trade import TradeAPI
-from okx import MarketData, PublicData
+from okx.api.trade import Trade
+from okx.api.market import Market
+from okx.api.public import Public
 
 # 初始化API客户端
 load_dotenv()
@@ -14,9 +15,9 @@ passphrase = os.getenv("OKX_API_PASSPHRASE")
 ENV_FLAG = os.getenv("OKX_ENV_FLAG")
 
 # API实例
-trade_api = TradeAPI(api_key, api_secret_key, passphrase, use_server_time=False, flag=ENV_FLAG)
-market_api = MarketData.MarketAPI(flag=ENV_FLAG)
-public_api = PublicData.PublicAPI(flag=ENV_FLAG)
+trade_api = Trade(api_key, api_secret_key, passphrase, flag=ENV_FLAG)
+market_api = Market(flag=ENV_FLAG)
+public_api = Public(flag=ENV_FLAG)
 
 # 缓存产品信息，避免重复查询
 instrument_cache = {}

@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 
 from dotenv import load_dotenv
-from okx.Trade import TradeAPI
+# from okx.Trade import TradeAPI
 
 from myWork.another.all import get_realtime_price
 from myWork.dca.database_manager import DatabaseManager
@@ -18,7 +18,7 @@ passphrase = os.getenv("OKX_API_PASSPHRASE")
 ENV_FLAG = os.getenv("OKX_ENV_FLAG")
 
 # API实例
-trade_api = TradeAPI(api_key, api_secret_key, passphrase, use_server_time=False, flag=ENV_FLAG)
+# trade_api = TradeAPI(api_key, api_secret_key, passphrase, use_server_time=False, flag=ENV_FLAG)
 # market_api = MarketData.MarketAPI(flag=ENV_FLAG)
 # public_api = PublicData.PublicAPI(flag=ENV_FLAG)
 
@@ -91,7 +91,7 @@ def main():
             trade_decision = strategy.execute_logic(current_time, current_price)
             if trade_decision:
                 executor.execute_trade(inst_id, trade_decision)
-            time.sleep(60)  # 每分钟检查一次
+            time.sleep(5)  # 每分钟检查一次
         except:
             continue
 
