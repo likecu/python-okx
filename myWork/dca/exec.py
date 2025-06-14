@@ -92,6 +92,7 @@ def main():
         try:
             current_time = datetime.now()
             current_price = get_realtime_price(inst_id)['bid_px']
+            strategy.load_state()  # 每次循环都加载最新状态
             trade_decision = strategy.execute_logic(current_time, current_price)
             if trade_decision:
                 executor.execute_trade(inst_id, trade_decision)
