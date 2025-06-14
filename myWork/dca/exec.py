@@ -3,8 +3,6 @@ import time
 from datetime import datetime
 
 from dotenv import load_dotenv
-import okx.MarketData as MarketData
-import okx.PublicData as PublicData
 from okx.Trade import TradeAPI
 
 from myWork.another.all import get_realtime_price
@@ -21,8 +19,8 @@ ENV_FLAG = os.getenv("OKX_ENV_FLAG")
 
 # API实例
 trade_api = TradeAPI(api_key, api_secret_key, passphrase, use_server_time=False, flag=ENV_FLAG)
-market_api = MarketData.MarketAPI(flag=ENV_FLAG)
-public_api = PublicData.PublicAPI(flag=ENV_FLAG)
+# market_api = MarketData.MarketAPI(flag=ENV_FLAG)
+# public_api = PublicData.PublicAPI(flag=ENV_FLAG)
 
 load_dotenv()
 MYSQL_CONN = os.getenv("MYSQL_CONN")
