@@ -4,6 +4,12 @@ from functools import partial
 from itertools import product
 from multiprocessing import Pool
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
@@ -70,9 +76,11 @@ def parameter_range_training(db_config, base_config, param_ranges, start_time, e
     for key, value in best_result['performance'].items():
         print(f"{key}: {value}")
 
+
 load_dotenv()
 MYSQL_CONN = os.getenv("MYSQL_CONN")
 MYSQL_PASS = os.getenv("MYSQL_PASS")
+
 
 def main():
     # 配置数据库连接信息
