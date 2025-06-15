@@ -119,7 +119,7 @@ def main():
     # 这里我们保持初始资金不变
 
     # 执行参数范围训练 (使用4个CPU核心并行处理)
-    parameter_range_training(db_config, base_strategy_config, parameter_ranges, start_time, end_time, n_jobs=8)
+    parameter_range_training(db_config, base_strategy_config, parameter_ranges, start_time, end_time, n_jobs=2)
 
 
 if __name__ == "__main__":
