@@ -4,21 +4,18 @@ import sys
 from functools import partial
 from itertools import product
 from multiprocessing import Pool
-from pathlib import Path
-
-# Correct project root path (3 levels up from test directory)
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
-from tqdm import tqdm
 
 import sys
-# Correct project root path for Linux environment
-sys.path.append('/root/python-okx1/')
+from pathlib import Path
+# Correct project root path (4 levels up to reach python-okx1 directory)
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 from dotenv import load_dotenv
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from myWork.dca.test.mysql_read import MySQLDataReader
 from myWork.dca.test.save import run_strategy_df
+from tqdm import tqdm
 
 
 def parameter_range_training(db_config, base_config, param_ranges, start_time, end_time, n_jobs=1):
