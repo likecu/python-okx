@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import numpy
 import pandas as pd
 
 # Add project root to Python path
