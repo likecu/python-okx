@@ -4,19 +4,16 @@ import sys
 from functools import partial
 from itertools import product
 from multiprocessing import Pool
-
-import sys
 from pathlib import Path
+
 # Correct project root path (4 levels up to reach python-okx1 directory)
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 from dotenv import load_dotenv
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from myWork.dca.test.mysql_read import MySQLDataReader
 from myWork.dca.test.save import run_strategy_df
 from tqdm import tqdm
-import json
 
 
 def parameter_range_training(db_config, base_config, param_ranges, start_time, end_time, n_jobs=1):
@@ -57,51 +54,12 @@ def parameter_range_training(db_config, base_config, param_ranges, start_time, e
     # 获取历史数据
     df = reader.get_sorted_history_data(start_time, end_time, base_config.get('currency', 'UNKNOWN'))
     
-    # 处理未执行的参数
-    processed_count = 0
-    total_params = len(all_configs)
-    
-    while True:
-        # 获取一个未执行的参数
-        param_id, config = reader.get_unexecuted_parameter()
-        if not param_id:
-            print("所有参数已执行完毕")
-            break
-        
-        processed_count += 1
-        print(f"正在执行参数 {processed_count}/{total_params} (ID: {param_id})")
-        
-        try:
-            # 运行策略
-            result = run_strategy_df(config, db_config, start_time, end_time, df)
-            
-            # 更新参数状态为已完成
-            if result:
-                reader.update_parameter_status(param_id, 'completed', result['performance'])
-            else:
-                reader.update_parameter_status(param_id, 'failed', {'error': '策略运行返回空结果'})
-        except Exception as e:
-            # 更新参数状态为失败
-            reader.update_parameter_status(param_id, 'failed', {'error': str(e)})
-            print(f"参数 {param_id} 执行失败: {str(e)}")
-    
     reader.disconnect()
 
     total_runs = len(param_combinations)
     print(f"开始参数范围训练，共{total_runs}次回测")
 
-    # 创建所有配置组合
-    all_configs = []
-    for params in param_combinations:
-        config = base_config.copy()
-        for name, value in zip(param_names, params):
-            config[name] = value
-        all_configs.append(config)
 
-    reader = MySQLDataReader(**db_config)
-    reader.connect()
-    df = reader.get_sorted_history_data(start_time, end_time, config.get('currency', 'UNKNOWN'))
-    reader.disconnect()
 
     # 使用多进程并行运行回测
     with Pool(processes=n_jobs) as pool:
@@ -179,7 +137,7 @@ def main():
     # 这里我们保持初始资金不变
 
     # 执行参数范围训练 (使用4个CPU核心并行处理)
-    parameter_range_training(db_config, base_strategy_config, parameter_ranges, start_time, end_time, n_jobs=4)
+    parameter_range_training(db_config, base_strategy_config, parameter_ranges, start_time, end_time, n_jobs=1)
 
 
 if __name__ == "__main__":
