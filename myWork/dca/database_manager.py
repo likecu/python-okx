@@ -103,12 +103,12 @@ class DatabaseManager:
         try:
             with self.connection.cursor() as cursor:
                 # 检查策略是否已存在
-                cursor.execute("SELECT id FROM dca_strategy_state WHERE strategy_name = %s", (strategy_name,))
+                cursor.execute("SELECT id FROM dca_strategy_state WHERE strategy_name = %s limit 1", (strategy_name,))
                 result = cursor.fetchone()
 
                 if result is not None:
                     # 更新现有策略
-                    strategy_id = result[0]
+                    strategy_id = result['id']
                     query = '''
                     UPDATE dca_strategy_state SET
                     price_drop_threshold = %s,
