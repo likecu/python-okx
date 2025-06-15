@@ -1,20 +1,22 @@
 import datetime
 import os
+import sys
 from functools import partial
 from itertools import product
 from multiprocessing import Pool
-
-import sys
 from pathlib import Path
 
-# Add project root to Python path
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
+# Correct project root path (3 levels up from test directory)
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
-import numpy as np
-import pandas as pd
-from dotenv import load_dotenv
 from tqdm import tqdm
 
+import sys
+# Correct project root path for Linux environment
+sys.path.append('/root/python-okx1/')
+from dotenv import load_dotenv
+import numpy as np
+import pandas as pd
 from myWork.dca.test.mysql_read import MySQLDataReader
 from myWork.dca.test.save import run_strategy_df
 
