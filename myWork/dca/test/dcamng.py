@@ -111,7 +111,7 @@ def main():
         'min_time_since_last_trade': generate_range(6, 48, 6),  # 最短无交易时间0.25-2天
         'take_profit_threshold': generate_range(0.005, 0.03, 0.005),  # 止盈阈值0.5-2%
         'initial_investment_ratio': generate_range(0.05, 0.3, 0.05),  # 初始投资比例5-30%
-        'initial_dca_value': generate_range(0.02, 0.06
+        'initial_dca_value': generate_range(0.02, 0.2
                                             , 0.005)  # 初始DCA值2-7%
     }
 
