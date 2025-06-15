@@ -10,6 +10,8 @@ import pymysql
 import multiprocessing
 from cachetools import TTLCache
 from cachetools.keys import hashkey
+import json
+import numpy as np
 
 
 class MySQLDataReader:
@@ -142,6 +144,89 @@ class MySQLDataReader:
         with self.lock:
             self.cache.clear()
             print("缓存已清空")
+
+    def create_parameter_table(self):
+        """创建策略参数表"""
+        query = """
+        CREATE TABLE IF NOT EXISTS strategy_parameters (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            params JSON NOT NULL,
+            params_hash VARCHAR(32) GENERATED ALWAYS AS (MD5(CAST(params AS CHAR))) STORED,
+            status ENUM('pending', 'executing', 'completed', 'failed') DEFAULT 'pending',
+            result JSON NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uk_params_hash (params_hash)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """
+        self.execute_query(query)
+        print("策略参数表已创建或已存在")
+
+    def _convert_numpy_types(self, obj):
+        if isinstance(obj, numpy.integer):
+            return int(obj)
+        return obj
+
+    def insert_parameters(self, params_list):
+        """批量插入参数组合，避免重复"""
+        if not params_list:
+            return
+
+        query = "INSERT IGNORE INTO strategy_parameters (params) VALUES (%s)"
+        params = [(json.dumps(p, default=self._convert_numpy_types),) for p in params_list]
+
+        with self.connection.cursor() as cursor:
+            cursor.executemany(query, params)
+        self.connection.commit()
+        print(f"成功插入 {len(params_list)} 个参数组合，忽略重复项")
+
+    def get_unexecuted_parameter(self):
+        """获取一个未执行的参数组合并标记为执行中"""
+        # 使用SELECT FOR UPDATE锁定行，防止并发问题
+        query = """
+        SELECT id, params FROM strategy_parameters 
+        WHERE status = 'pending' 
+        ORDER BY id ASC 
+        LIMIT 1 
+        FOR UPDATE;
+        """
+
+        update_query = """
+        UPDATE strategy_parameters 
+        SET status = 'executing', updated_at = CURRENT_TIMESTAMP 
+        WHERE id = %s;
+        """
+
+        try:
+            with self.connection.cursor() as cursor:
+                # 开始事务
+                self.connection.begin()
+                cursor.execute(query)
+                result = cursor.fetchone()
+                if result:
+                    param_id = result['id']
+                    params = json.loads(result['params'])
+                    cursor.execute(update_query, (param_id,))
+                    self.connection.commit()
+                    return param_id, params
+                self.connection.commit()
+                return None, None
+        except Exception as e:
+            self.connection.rollback()
+            print(f"获取未执行参数失败: {e}")
+            raise
+
+    def update_parameter_status(self, param_id, status, result=None):
+        """更新参数执行状态和结果"""
+        query = """
+        UPDATE strategy_parameters 
+        SET status = %s, result = %s, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = %s;
+        """
+        result_json = json.dumps(result) if result else None
+        self.execute_query(query, (status, result_json, param_id))
+        self.connection.commit()
+        print(f"参数 {param_id} 状态已更新为 {status}")
 
     def get_cache_info(self):
         """获取缓存信息"""

@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from myWork.dca.test.mysql_read import MySQLDataReader
 from myWork.dca.test.save import run_strategy_df
 from tqdm import tqdm
+import json
 
 
 def parameter_range_training(db_config, base_config, param_ranges, start_time, end_time, n_jobs=1):
@@ -29,10 +30,62 @@ def parameter_range_training(db_config, base_config, param_ranges, start_time, e
     start_time, end_time - 回测时间范围
     n_jobs - 并行处理数
     """
+    # 创建数据库连接
+    reader = MySQLDataReader(**db_config)
+    reader.connect()
+    
+    # 创建参数表
+    reader.create_parameter_table()
+    
     # 生成所有参数组合
     param_names = list(param_ranges.keys())
     param_values = list(param_ranges.values())
     param_combinations = list(product(*param_values))
+    
+    # 创建所有配置组合并插入数据库
+    all_configs = []
+    for params in param_combinations:
+        config = base_config.copy()
+        for name, value in zip(param_names, params):
+            config[name] = value
+        all_configs.append(config)
+    
+    # 插入参数到数据库
+    reader.insert_parameters(all_configs)
+    print(f"已将{len(all_configs)}个参数组合插入数据库")
+    
+    # 获取历史数据
+    df = reader.get_sorted_history_data(start_time, end_time, base_config.get('currency', 'UNKNOWN'))
+    
+    # 处理未执行的参数
+    processed_count = 0
+    total_params = len(all_configs)
+    
+    while True:
+        # 获取一个未执行的参数
+        param_id, config = reader.get_unexecuted_parameter()
+        if not param_id:
+            print("所有参数已执行完毕")
+            break
+        
+        processed_count += 1
+        print(f"正在执行参数 {processed_count}/{total_params} (ID: {param_id})")
+        
+        try:
+            # 运行策略
+            result = run_strategy_df(config, db_config, start_time, end_time, df)
+            
+            # 更新参数状态为已完成
+            if result:
+                reader.update_parameter_status(param_id, 'completed', result['performance'])
+            else:
+                reader.update_parameter_status(param_id, 'failed', {'error': '策略运行返回空结果'})
+        except Exception as e:
+            # 更新参数状态为失败
+            reader.update_parameter_status(param_id, 'failed', {'error': str(e)})
+            print(f"参数 {param_id} 执行失败: {str(e)}")
+    
+    reader.disconnect()
 
     total_runs = len(param_combinations)
     print(f"开始参数范围训练，共{total_runs}次回测")
