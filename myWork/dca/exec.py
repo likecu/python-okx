@@ -2,6 +2,7 @@ import os
 import time
 from datetime import datetime
 
+import pymysql
 from dotenv import load_dotenv
 # from okx.Trade import TradeAPI
 
@@ -83,6 +84,29 @@ def main():
         order_id = executor.execute_trade(inst_id, trade_decision)
         if order_id:
             print(f"交易执行成功，订单ID: {order_id}")
+            # 保存交易日志
+            if db_manager.connect():
+                try:
+                    with db_manager.connection.cursor() as cursor:
+                        query = '''
+                        INSERT INTO trade_logs (inst_id, trade_time, trade_type, price, position, fee, order_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        '''
+                        cursor.execute(query, (
+                            inst_id,
+                            current_time,
+                            trade_decision['type'],
+                            current_price,
+                            trade_decision['position'],
+                            trade_decision['fee'],
+                            order_id
+                        ))
+                    db_manager.connection.commit()
+                except pymysql.Error as e:
+                    print(f"保存交易日志错误: {e}")
+                    db_manager.connection.rollback()
+                finally:
+                    db_manager.disconnect()
         else:
             print("交易执行失败")
 
@@ -95,9 +119,34 @@ def main():
             strategy.load_state()  # 每次循环都加载最新状态
             trade_decision = strategy.execute_logic(current_time, current_price)
             if trade_decision:
-                executor.execute_trade(inst_id, trade_decision)
-            time.sleep(5)  # 每分钟检查一次
-        except:
+                order_id = executor.execute_trade(inst_id, trade_decision)
+                if order_id:
+                    # 保存交易日志
+                    if db_manager.connect():
+                        try:
+                            with db_manager.connection.cursor() as cursor:
+                                query = '''
+                                INSERT INTO trade_logs (inst_id, trade_time, trade_type, price, position, fee, order_id)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                '''
+                                cursor.execute(query, (
+                                    inst_id,
+                                    current_time,
+                                    trade_decision['type'],
+                                    current_price,
+                                    trade_decision['position'],
+                                    trade_decision['fee'],
+                                    order_id
+                                ))
+                            db_manager.connection.commit()
+                        except pymysql.Error as e:
+                            print(f"保存交易日志错误: {e}")
+                            db_manager.connection.rollback()
+                        finally:
+                            db_manager.disconnect()
+            time.sleep(5)  # 每5秒检查一次
+        except Exception as e:
+            print(f"循环中出现错误: {e}")
             continue
 
 
