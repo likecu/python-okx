@@ -318,6 +318,8 @@ class DcaExeStrategy:
         # 计算利润
         profit = actual_income - (self.portfolio['position'] * self.portfolio['avg_price'])
 
+        # 计算卖出数量
+        sell_size = self.portfolio['position']  # 全部卖出
         # 记录交易信息
         trade_info = {
             'time': current_time,
@@ -325,6 +327,7 @@ class DcaExeStrategy:
             'price': current_price,
             'position': 0,
             'cash': self.portfolio['cash'] + actual_income,
+            'sz': sell_size,
             'profit': profit,
             'portfolio_value': self.portfolio['cash'] + actual_income,
             'fee': fee,
