@@ -86,6 +86,21 @@ class DatabaseManager:
                 )
                 ''')
 
+                # 创建交易日志表
+                cursor.execute('''
+                CREATE TABLE IF NOT EXISTS trade_logs (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    inst_id VARCHAR(50) NOT NULL,
+                    trade_time DATETIME NOT NULL,
+                    trade_type ENUM('INITIAL_BUY', 'DCA', 'TAKE_PROFIT') NOT NULL,
+                    price DECIMAL(15,8) NOT NULL,
+                    position DECIMAL(15,8) NOT NULL,
+                    fee DECIMAL(15,4) NOT NULL,
+                    order_id VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                ''')
+
             self.connection.commit()
             return True
         except pymysql.Error as e:
