@@ -59,7 +59,7 @@ def main():
         database_manager=db_manager,  # 传入数据库管理器
         buy_fee_rate=0.001,
         sell_fee_rate=0.001,
-        strategy_name="BTC_USDT_DCA-1"  # 策略名称
+        strategy_name="BTC_USDT_DCA-88"  # 策略名称
     )
 
     # 尝试从数据库加载策略状态

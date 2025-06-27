@@ -74,7 +74,7 @@ class TradingExecutor:
             final_sz = format_number(rounded_sz, sz_precision)
         else:  # sell
             # 卖出时，使用当前持仓量
-            final_sz = trade_info['position']
+            final_sz = trade_info['sz']
 
         # 构造交易参数
         trade_params = {

@@ -216,13 +216,17 @@ class DatabaseManager:
                  portfolio_value, fee, amount, side, dca_amount, profit)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 '''
+                if trade_info['position'] == 0:
+                    amo = trade_info['sz']
+                else:
+                    amo = trade_info['position']
 
                 cursor.execute(query, (
                     strategy_id,
                     trade_info['time'],
                     trade_info['type'],
                     trade_info['price'],
-                    trade_info['position'],
+                    amo,
                     trade_info['cash'],
                     trade_info['portfolio_value'],
                     trade_info['fee'],
