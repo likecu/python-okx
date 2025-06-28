@@ -174,7 +174,7 @@ def main():
     start_time = end_time - pd.Timedelta(days=120)
 
     # 执行参数训练
-    parameter_range_training(db_config, start_time, end_time, base_strategy_config, n_jobs=12)
+    parameter_range_training(db_config, start_time, end_time, base_strategy_config, n_jobs=1)
 
 
 if __name__ == "__main__":
