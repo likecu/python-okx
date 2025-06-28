@@ -70,7 +70,11 @@ def parameter_range_training(db_config, start_time, end_time, base_strategy_conf
     df = reader.get_sorted_history_data(start_time, end_time, base_strategy_config['currency'])
     
     # 使用多进程处理参数
-    context = get_context('fork')
+    # 根据操作系统选择合适的多进程启动方式
+    if sys.platform.startswith('win'):
+        context = get_context('spawn')  # Windows系统使用spawn
+    else:
+        context = get_context('fork')   # Unix/Linux系统使用fork
     with context.Pool(processes=n_jobs) as pool:
         # 启动n_jobs个worker进程
         for i in range(n_jobs):
@@ -163,14 +167,14 @@ def main():
     param_base = base_strategy_config.copy()
     if 'currency' in param_base:
         del param_base['currency']
-    generate_and_insert_parameters(db_config, param_base, parameter_ranges)
+    # generate_and_insert_parameters(db_config, param_base, parameter_ranges)
 
     # 配置数据时间范围
     end_time = datetime.datetime(2025, 6, 8)
     start_time = end_time - pd.Timedelta(days=120)
 
     # 执行参数训练
-    parameter_range_training(db_config, start_time, end_time, base_strategy_config, n_jobs=4)
+    parameter_range_training(db_config, start_time, end_time, base_strategy_config, n_jobs=12)
 
 
 if __name__ == "__main__":
