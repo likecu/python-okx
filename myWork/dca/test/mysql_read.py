@@ -173,7 +173,7 @@ class MySQLDataReader:
         if not params_list:
             return
 
-        query = "INSERT IGNORE INTO strategy_parameters (params) VALUES (%s)"
+        query = "INSERT IGNORE INTO strategy_parameters (params, status) VALUES (%s, 'pending')"
         params = [(json.dumps(p, default=self._convert_numpy_types),) for p in params_list]
 
         with self.connection.cursor() as cursor:
