@@ -7,7 +7,8 @@ class DcaExeStrategy:
     def __init__(self, price_drop_threshold=0.02, max_time_since_last_trade=7,
                  min_time_since_last_trade=3, take_profit_threshold=0.01,
                  initial_capital=100000, initial_investment_ratio=0.5, initial_dca_value=0.1,
-                 buy_fee_rate=0.001, sell_fee_rate=0.001, database_manager=None, strategy_name=None):
+                 buy_fee_rate=0.001, sell_fee_rate=0.001, database_manager=None, strategy_name=None,
+                 currency=None):
         """
         初始化DCA策略参数
 
@@ -22,6 +23,7 @@ class DcaExeStrategy:
         sell_fee_rate: 卖出交易费用比例
         database_manager: 数据库管理器实例
         strategy_name: 策略名称，默认为随机生成的UUID
+        currency: 交易对货币对
         """
         self.price_drop_threshold = price_drop_threshold
         self.max_time_since_last_trade = max_time_since_last_trade
@@ -32,6 +34,7 @@ class DcaExeStrategy:
         self.initial_dca_value = initial_dca_value
         self.buy_fee_rate = buy_fee_rate
         self.sell_fee_rate = sell_fee_rate
+        self.currency = currency
 
         # 策略状态
         self.positions = []  # 持仓记录

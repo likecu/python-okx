@@ -54,7 +54,7 @@ def main():
         take_profit_threshold=0.02,  # 利润达到2%触发止盈
         max_time_since_last_trade=48,
         min_time_since_last_trade=24,
-        initial_capital=100,  # 初始资金100,000 USDT
+        initial_capital=1000,  # 初始资金100,000 USDT
         initial_investment_ratio=0.05,  # 初始投资使用50%的资金
         initial_dca_value=0.065,  # 首次DCA使用剩余资金的10%
         database_manager=db_manager,  # 传入数据库管理器
