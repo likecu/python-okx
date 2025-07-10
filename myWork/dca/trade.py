@@ -74,12 +74,25 @@ class TradingExecutor:
             final_sz = format_number(rounded_sz, sz_precision)
         else:  # sell
             # 卖出时，使用当前持仓量
-            final_sz = trade_info['sz']
+            min_sz = float(instrument_info.get('minSz', '0.001'))
+            sz = float(trade_info['sz'])
+
+            # 确保数量符合最小下单量要求
+            if sz < min_sz:
+                print(f"计算的下单量{sz}小于最小下单量{min_sz}，交易取消")
+                return None
+
+            # 调整数量精度
+            sz_precision = _get_precision(min_sz)
+            # 先四舍五入到指定精度
+            rounded_sz = round(sz, sz_precision)
+            # 然后格式化为字符串
+            final_sz = format_number(rounded_sz, sz_precision)
 
         # 构造交易参数
         trade_params = {
             "instId": inst_id,
-            "tdMode": "cash",
+            "tdMode": "cross",
             "side": trade_info['side'],
             "ccy": "USDT",
             "ordType": "limit",
