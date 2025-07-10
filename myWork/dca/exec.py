@@ -54,13 +54,13 @@ def main():
         take_profit_threshold=0.02,  # 利润达到2%触发止盈
         max_time_since_last_trade=48,
         min_time_since_last_trade=24,
-        initial_capital=1000,  # 初始资金100,000 USDT
+        initial_capital=5000,  # 初始资金100,000 USDT
         initial_investment_ratio=0.05,  # 初始投资使用50%的资金
         initial_dca_value=0.065,  # 首次DCA使用剩余资金的10%
         database_manager=db_manager,  # 传入数据库管理器
         buy_fee_rate=0.001,
         sell_fee_rate=0.001,
-        strategy_name="BTC_USDT_DCA-112"  # 策略名称
+        strategy_name="BTC_USDT_DCA-113"  # 策略名称
     )
 
     # 尝试从数据库加载策略状态
@@ -69,7 +69,7 @@ def main():
     strategy.load_state()
 
     # 交易对
-    inst_id = "BTC-USDT"
+    inst_id = "BTC-USDT-SWAP"
 
     # 示例：手动执行一次交易决策
     current_time = datetime.now()
