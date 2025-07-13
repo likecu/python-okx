@@ -2,11 +2,13 @@ import os
 import time
 from datetime import datetime
 
+import pymysql
 from dotenv import load_dotenv
 # from okx.Trade import TradeAPI
 
 import sys
 from pathlib import Path
+
 # Add project root to Python path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from myWork.another.all import get_realtime_price
@@ -50,15 +52,15 @@ def main():
     strategy = DcaExeStrategy(
         price_drop_threshold=0.03,  # 价格下跌3%触发DCA
         take_profit_threshold=0.02,  # 利润达到2%触发止盈
-        max_time_since_last_trade=1,
-        min_time_since_last_trade=0,
-        initial_capital=1000,  # 初始资金100,000 USDT
-        initial_investment_ratio=0.5,  # 初始投资使用50%的资金
-        initial_dca_value=0.1,  # 首次DCA使用剩余资金的10%
+        max_time_since_last_trade=48,
+        min_time_since_last_trade=24,
+        initial_capital=100000,  # 初始资金100,000 USDT
+        initial_investment_ratio=0.05,  # 初始投资使用50%的资金
+        initial_dca_value=0.065,  # 首次DCA使用剩余资金的10%
         database_manager=db_manager,  # 传入数据库管理器
         buy_fee_rate=0.001,
         sell_fee_rate=0.001,
-        strategy_name="BTC_USDT_DCA-1"  # 策略名称
+        strategy_name="BTC_USDT_DCA-113"  # 策略名称
     )
 
     # 尝试从数据库加载策略状态
@@ -67,7 +69,7 @@ def main():
     strategy.load_state()
 
     # 交易对
-    inst_id = "BTC-USDT"
+    inst_id = "BTC-USDT-SWAP"
 
     # 示例：手动执行一次交易决策
     current_time = datetime.now()
@@ -83,6 +85,29 @@ def main():
         order_id = executor.execute_trade(inst_id, trade_decision)
         if order_id:
             print(f"交易执行成功，订单ID: {order_id}")
+            # 保存交易日志
+            if db_manager.connect():
+                try:
+                    with db_manager.connection.cursor() as cursor:
+                        query = '''
+                        INSERT INTO trade_logs (inst_id, trade_time, trade_type, price, position, fee, order_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        '''
+                        cursor.execute(query, (
+                            inst_id,
+                            current_time,
+                            trade_decision['type'],
+                            current_price,
+                            trade_decision['position'],
+                            trade_decision['fee'],
+                            order_id
+                        ))
+                    db_manager.connection.commit()
+                except pymysql.Error as e:
+                    print(f"保存交易日志错误: {e}")
+                    db_manager.connection.rollback()
+                finally:
+                    db_manager.disconnect()
         else:
             print("交易执行失败")
 
@@ -95,9 +120,34 @@ def main():
             strategy.load_state()  # 每次循环都加载最新状态
             trade_decision = strategy.execute_logic(current_time, current_price)
             if trade_decision:
-                executor.execute_trade(inst_id, trade_decision)
-            time.sleep(5)  # 每分钟检查一次
-        except:
+                order_id = executor.execute_trade(inst_id, trade_decision)
+                if order_id:
+                    # 保存交易日志
+                    if db_manager.connect():
+                        try:
+                            with db_manager.connection.cursor() as cursor:
+                                query = '''
+                                INSERT INTO trade_logs (inst_id, trade_time, trade_type, price, position, fee, order_id)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                '''
+                                cursor.execute(query, (
+                                    inst_id,
+                                    current_time,
+                                    trade_decision['type'],
+                                    current_price,
+                                    trade_decision['position'],
+                                    trade_decision['fee'],
+                                    order_id
+                                ))
+                            db_manager.connection.commit()
+                        except pymysql.Error as e:
+                            print(f"保存交易日志错误: {e}")
+                            db_manager.connection.rollback()
+                        finally:
+                            db_manager.disconnect()
+            time.sleep(5)  # 每5秒检查一次
+        except Exception as e:
+            print(f"循环中出现错误: {e}")
             continue
 
 

@@ -10,7 +10,7 @@ class DCAStrategy:
     def __init__(self, price_drop_threshold=0.02, max_time_since_last_trade=7,
                  min_time_since_last_trade=3, take_profit_threshold=0.01,
                  initial_capital=100000, initial_investment_ratio=0.5, initial_dca_value=0.1,
-                 buy_fee_rate=0.001, sell_fee_rate=0.001):
+                 buy_fee_rate=0.001, sell_fee_rate=0.001, currency="UNKNOWN"):
         """
         初始化DCA策略参数
 
@@ -34,6 +34,7 @@ class DCAStrategy:
         self.initial_dca_value = initial_dca_value
         self.buy_fee_rate = buy_fee_rate
         self.sell_fee_rate = sell_fee_rate
+        self.currency = currency
 
         # 策略状态
         self.positions = []  # 持仓记录

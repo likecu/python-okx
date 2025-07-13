@@ -1,3 +1,9 @@
+import sys
+import os
+# Add workspace root to Python path
+workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, workspace_root)
+
 import time
 from typing import Dict, Optional
 
@@ -74,12 +80,25 @@ class TradingExecutor:
             final_sz = format_number(rounded_sz, sz_precision)
         else:  # sell
             # 卖出时，使用当前持仓量
-            final_sz = trade_info['position']
+            min_sz = float(instrument_info.get('minSz', '0.001'))
+            sz = float(trade_info['sz'])
+
+            # 确保数量符合最小下单量要求
+            if sz < min_sz:
+                print(f"计算的下单量{sz}小于最小下单量{min_sz}，交易取消")
+                return None
+
+            # 调整数量精度
+            sz_precision = _get_precision(min_sz)
+            # 先四舍五入到指定精度
+            rounded_sz = round(sz, sz_precision)
+            # 然后格式化为字符串
+            final_sz = format_number(rounded_sz, sz_precision)
 
         # 构造交易参数
         trade_params = {
             "instId": inst_id,
-            "tdMode": "cash",
+            "tdMode": "cross",
             "side": trade_info['side'],
             "ccy": "USDT",
             "ordType": "limit",
@@ -118,6 +137,19 @@ class TradingExecutor:
                         new_px = float(error_msg.split("is ")[1].split(". ")[0])
                         print(f"触发价格限制，使用强制限价: {new_px}")
                         trade_params["px"] = f"{new_px:.8f}"
+                    elif error_code == "51006":
+                        # 处理价格超出限制错误
+                        if trade_info['side'] == 'buy':
+                            # 提取最大买入价
+                            max_buy_price_str = error_msg.split("max buy price: ")[1].split(", min sell price")[0].replace(",", "")
+                            new_px = float(max_buy_price_str)
+                        else:
+                            # 提取最小卖出价
+                            min_sell_price_str = error_msg.split("min sell price: ")[1].split(")")[0].replace(",", "")
+                            new_px = float(min_sell_price_str)
+                        print(f"订单价格超出限制，调整为: {new_px}")
+                        # 确保价格精度符合要求
+                        trade_params["px"] = round(new_px, _get_precision(tick_sz))
                     else:
                         self.db_manager.update_order_status(order_id, 'rejected', error_msg)
                         break
