@@ -78,3 +78,5 @@ urllib3==1.26.12
 win32_setctime==1.2.0
 zipp==3.21.0
 zope.interface==7.2
+backtrader==1.9.76.123
+pyalgotrade==0.20

@@ -58,19 +58,28 @@ class TradingExecutor:
             price = price_data['bid_px']
 
         # 确保价格符合精度要求
-        tick_sz = float(instrument_info.get('tickSz', '0.01'))
+        tick_sz = float(instrument_info.get('tickSz', '0.0001'))
         adjusted_px = round(price, _get_precision(tick_sz))
 
         # 确定交易数量
         if trade_info['side'] == 'buy':
             # 买入时，根据金额计算数量
-            min_sz = float(instrument_info.get('minSz', '0.001'))
+            min_sz = float(instrument_info.get('minSz', '0.0001'))
+            # 计算购买最小下单量所需的金额
+            required_amount = min_sz * adjusted_px
+
+            # 检查金额是否足够
+            if trade_info['amount'] < required_amount:
+                print(f"金额不足，无法满足最小下单量{min_sz}。需要{required_amount}USDT，当前金额为{trade_info['amount']}USDT，交易取消")
+                return None
+
+            # 根据金额计算下单量
             sz = trade_info['amount'] / adjusted_px
 
-            # 确保数量符合最小下单量要求
+            # 确保下单量至少为最小下单量（数学上必然成立，但保留冗余检查）
             if sz < min_sz:
-                print(f"计算的下单量{sz}小于最小下单量{min_sz}，交易取消")
-                return None
+                sz = min_sz
+                print(f"系统检测到价格波动，自动调整下单量至最小下单量{min_sz}")
 
             # 调整数量精度
             sz_precision = _get_precision(min_sz)
@@ -80,13 +89,20 @@ class TradingExecutor:
             final_sz = format_number(rounded_sz, sz_precision)
         else:  # sell
             # 卖出时，使用当前持仓量
-            min_sz = float(instrument_info.get('minSz', '0.001'))
-            sz = float(trade_info['sz'])
+            min_sz = float(instrument_info.get('minSz', '0.0001'))
+            # 获取当前实际可卖出数量
+            available_sz = float(trade_info['sz'])
+            sz = available_sz
 
-            # 确保数量符合最小下单量要求
+            # 智能处理最小下单量限制
             if sz < min_sz:
-                print(f"计算的下单量{sz}小于最小下单量{min_sz}，交易取消")
-                return None
+                # 检查是否有足够持仓进行最小数量交易
+                if available_sz >= min_sz:
+                    sz = min_sz
+                    print(f"卖出数量{available_sz}小于最小下单量{min_sz}，已自动调整为最小下单量")
+                else:
+                    print(f"持仓不足，无法满足最小卖出量{min_sz}。当前可卖{available_sz}，交易取消")
+                    return None
 
             # 调整数量精度
             sz_precision = _get_precision(min_sz)

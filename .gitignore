@@ -33,3 +33,45 @@ build/
 ### VS Code ###
 .vscode/
 id_rsa*
+myWork/another/header.json
+
+### Environment files ###
+.env
+.env1
+.env2
+.env.local
+.env.*.local
+
+### Test files ###
+myWork/dca/test/
+myWork/test.py
+
+### Image files ###
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+
+### Log files ###
+*.log
+header_check.log
+
+### CSV data files ###
+*.csv
+!requirements.txt
+
+### Backtest files ###
+backtest_dca.py
+optimize_dca_params.py
+optimize_dca_params_silent.py
+validate_trade_times.py
+
+### Temporary files ###
+.trae/
+pp.json
+
+### Output files ###
+optimized_*_results_*.png
+grid_trading_results_*.png
+dca_optimization_results_*.csv

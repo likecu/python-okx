@@ -20,3 +20,11 @@ ps -ef | grep exec.py
 
 pkill -f "python myWork/dca/exec.py"  # 终止所有运行 exec.py 的进程
 pkill -f "bash -c source okx-env-3.8"  # 终止所有运行该脚本的 bash 进程
+
+
+ username: qwekqbho
+ password: 3a35793f
+
+!A33b3e561fec4
+
+/Volumes/600g/app1/okx-py/bin
