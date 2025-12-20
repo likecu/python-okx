@@ -1,0 +1,6 @@
+backtest_dca.py
+optimize_dca_params.py
+optimize_dca_params_silent.py
+requirements.txt
+.env
+myWork/

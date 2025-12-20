@@ -41,6 +41,8 @@ myWork/another/header.json
 .env2
 .env.local
 .env.*.local
+temp.env
+correct_env.txt
 
 ### Test files ###
 myWork/dca/test/

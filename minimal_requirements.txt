@@ -1,0 +1,5 @@
+pandas
+PyMySQL
+sqlalchemy
+python-dotenv
+cryptography

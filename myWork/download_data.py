@@ -1,4 +1,4 @@
-import okx.MarketData as MarketData
+from okx import Market as MarketData
 import time
 import datetime
 import pandas as pd
@@ -153,7 +153,7 @@ def save_to_mysql(df):
 # ======================
 # 初始化API客户端
 # ======================
-market_data_api = MarketData.MarketAPI(flag=CONFIG["API_ENV"], proxy='http://127.0.0.1:7897')
+market_data_api = MarketData(flag=CONFIG["API_ENV"])
 
 
 # ======================
