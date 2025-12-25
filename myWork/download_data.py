@@ -17,7 +17,7 @@ def load_config():
     返回:
         dict: 配置字典
     """
-    config_path = os.path.join(os.path.dirname(__file__), 'config/trading_pairs.json')
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config/trading_pairs.json')
     with open(config_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
