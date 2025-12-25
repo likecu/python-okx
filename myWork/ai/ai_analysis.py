@@ -1,53 +1,139 @@
 import os
 from datetime import datetime
-
-import openai
 import json
+import random
 from typing import Dict, Any
-
-import requests
-# from config import OPENAI_API_KEY
-from dotenv import load_dotenv
-from openai import OpenAI
-
-# 加载环境变量
-load_dotenv()
-
-# 获取配置
-API_KEY = os.getenv("OKX_API_KEY")
-API_SECRET = os.getenv("OKX_API_SECRET")
-PASSPHRASE = os.getenv("OKX_API_PASSPHRASE")
-ENV_FLAG = os.getenv("OKX_ENV_FLAG")
-OPENAI_API_KEY = os.getenv("OPEN_AI_KEY")
+import google.genai as genai
+from gemini_config import GEMINI_API_KEYS
 
 
-class AIAnalyzer:
-    SYSTEM_PROMPT = """
-    你是一位精通加密货币市场的量化分析师。请基于以下数据，对 BTC 未来 7 天的价格走势进行全面分析：
+class GeminiAIAnalyzer:
+    def __init__(self):
+        """
+        初始化 Gemini AI 分析器
+        """
+        self.current_key_index = random.randint(0, len(GEMINI_API_KEYS) - 1)
+        self.api_key = GEMINI_API_KEYS[self.current_key_index]
+        self.client = genai.Client(api_key=self.api_key)
+        
+        self.model_priority = [
+            "gemma-3-27b-it",
+            "gemma-3-12b-it",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash",
+            "gemma-3-2b-it",
+            "gemma-3-9b-it",
+            "gemini-2-27b-it",
+            "gemini-2-9b-it",
+            "gemma-1.1-7b-it",
+            "gemini-1-7b-it",
+            "gemini-2-2b-it",
+            "gemini-1.1-2b-it",
+            "gemini-1-2b-it",
+            "gemini-nano",
+            "gemini-2.5-pro",
+            "gemini-1.5-pro",
+            "gemini-ultra",
+            "gemini-experimental"
+        ]
+        
+        self.model_name = self.select_best_model()
+        print(f"使用模型: {self.model_name}")
+    
+    def select_best_model(self):
+        """
+        根据优先级选择最优模型
+        :return: 最优模型名称
+        """
+        for model_name in self.model_priority:
+            return model_name
+        return "gemma-3-27b-it"
+    
+    def ask_question(self, question):
+        """
+        直接向 Gemini 提问
+        :param question: 提问内容
+        :return: 提问结果对象
+        """
+        print(f"开始提问: {question}")
+        print(f"当前使用模型: {self.model_name}")
+        
+        max_attempts = 3
+        current_attempt = 0
+        
+        while current_attempt < max_attempts:
+            try:
+                contents = [question]
+                
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents
+                )
+                
+                return {
+                    "success": True,
+                    "response": response.text,
+                    "model": self.model_name
+                }
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"调用 Gemini API 时发生错误: {error_msg}")
+                
+                if "quota exceeded" in error_msg.lower() or "429" in error_msg:
+                    print(f"模型 {self.model_name} 配额已用完，尝试切换模型或 API 密钥...")
+                    current_attempt += 1
+                    
+                    if len(GEMINI_API_KEYS) > 1:
+                        self.current_key_index = (self.current_key_index + 1) % len(GEMINI_API_KEYS)
+                        self.api_key = GEMINI_API_KEYS[self.current_key_index]
+                        self.client = genai.Client(api_key=self.api_key)
+                        print(f"已切换到新 API 密钥: {self.api_key[:10]}...")
+                    
+                    if self.model_name in self.model_priority:
+                        self.model_priority.remove(self.model_name)
+                    
+                    new_model = self.select_best_model()
+                    if new_model != self.model_name:
+                        self.model_name = new_model
+                        print(f"已切换到新模型: {self.model_name}")
+                    else:
+                        print("没有可用的替代模型")
+                        break
+                else:
+                    return None
+        
+        print(f"尝试了 {current_attempt} 次后仍无法完成提问")
+        return None
+    
+    def generate_analysis(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        生成 AI 分析结果
+        :param data: 包含价格数据、技术指标等的数据字典
+        :return: 分析结果字典
+        """
+        system_prompt = """
+        你是一位精通加密货币市场的量化分析师。请基于以下数据，对 BTC 未来 7 天的价格走势进行全面分析：
 
-    1. 技术面分析：MA5/MA20/MA50/MA200 趋势、RSI 指标、MACD 指标
-    2. 链上数据：交易所余额变化、巨鲸活动、活跃地址数
-    3. 市场情绪：恐惧与贪婪指数
-    4. 宏观经济：美元指数、美联储政策预期
+        1. 技术面分析：MA5/MA20/MA50/MA200 趋势、RSI 指标、MACD 指标
+        2. 链上数据：交易所余额变化、巨鲸活动、活跃地址数
+        3. 市场情绪：恐惧与贪婪指数
+        4. 宏观经济：美元指数、美联储政策预期
 
-    请提供结构化分析，包括：
-    - 未来 7 天价格区间预测（精确到 $100）
-    - 关键支撑位和阻力位
-    - 上涨/下跌概率（百分比）
-    - 主要驱动因素（至少 3 条）
-    - 重大风险提示（至少 3 条）
-    - 明确的交易建议
+        请提供结构化分析，包括：
+        - 未来 7 天价格区间预测（精确到 $100）
+        - 关键支撑位和阻力位
+        - 上涨/下跌概率（百分比）
+        - 主要驱动因素（至少 3 条）
+        - 重大风险提示（至少 3 条）
+        - 明确的交易建议
 
-    请以 JSON 格式返回结果，包含以下字段：
-    "price_range", "support_level", "resistance_level", 
-    "bullish_probability", "bearish_probability", 
-    "driving_factors", "risks", "trading_advice", "analysis_date"
-    """
-
-    @staticmethod
-    def generate_analysis(data: Dict[str, Any]) -> Dict[str, Any]:
-        """生成 AI 分析结果"""
-        # 构建用户提示词
+        请以 JSON 格式返回结果，包含以下字段：
+        "price_range", "support_level", "resistance_level", 
+        "bullish_probability", "bearish_probability", 
+        "driving_factors", "risks", "trading_advice", "analysis_date"
+        """
+        
         user_prompt = f"""
         当前 BTC 数据：
 
@@ -64,89 +150,44 @@ class AIAnalyzer:
            - MA200：${data['technical_indicators']['MA200']:.2f}
            - RSI：{data['technical_indicators']['RSI']:.2f}
            - MACD：{data['technical_indicators']['MACD']:.2f}
-"""
-
-        """
-        3. 链上数据：
-           - 交易所余额：{data['onchain_data']['exchange_balance']:.2f} BTC
-           - 交易所净流入：{data['onchain_data']['exchange_flow']:.2f} BTC (24h)
-           - 巨鲸交易数：{data['onchain_data']['whale_transactions']} 笔
-           - 活跃地址数：{data['onchain_data']['active_addresses']:,}
-
-        4. 市场情绪：
-           - 恐惧与贪婪指数：{data['fear_greed_index']} ({AIAnalyzer._get_fgi_category(data['fear_greed_index'])})
 
         请基于以上数据，按照指定格式进行分析。
         """
-
-        # 调用 OpenAI API
-        try:
-
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "HTTP-Referer": "https://yourwebsite.com",  # 必须是你控制的域名
-                "X-Title": "ChatGPT Plugin",  # 你的应用名称
-            }
-
-            data = {
-                "model": "qwen/qwen3-235b-a22b:free",
-                "messages": [
-                    {"role": "system", "content": AIAnalyzer.SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "temperature": 0.3,
-            }
-
-            response = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                data=json.dumps(data)
-            )
-
-            # 处理响应
-            if response.status_code == 200:
-                result = response.json()
-                print(result)
-                # 处理返回的结果
-                # 解析 AI 响应
-                message_content = result["choices"][0]["message"]["content"].replace("```json","").replace("```","")
-
-                # 解析 JSON 数据
-                try:
-                    analysis_data = json.loads(message_content)
-                except json.JSONDecodeError as e:
-                    print("JSON 解析错误:", e)
-                    analysis_data = {}
+        
+        full_prompt = f"{system_prompt}\n\n{user_prompt}"
+        
+        result = self.ask_question(full_prompt)
+        
+        if result and result.get("success"):
+            try:
+                message_content = result["response"].replace("```json", "").replace("```", "")
+                analysis_data = json.loads(message_content)
                 analysis_data["analysis_date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 return analysis_data
-            else:
-                print(f"请求失败: {response.status_code}, {response.text}")
-
-
-        except Exception as e:
-            print(f"Error generating AI analysis: {e}")
-            return {
-                "error": str(e),
-                "price_range": "无法生成预测",
-                "support_level": "无法生成预测",
-                "resistance_level": "无法生成预测",
-                "bullish_probability": "0%",
-                "bearish_probability": "0%",
-                "driving_factors": ["AI分析失败", "请检查API密钥", "请检查网络连接"],
-                "risks": ["AI分析失败风险", "数据获取失败风险", "模型响应异常风险"],
-                "trading_advice": "谨慎操作，等待系统恢复正常",
-                "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-
-    @staticmethod
-    def _get_fgi_category(fgi: int) -> str:
-        """根据恐惧与贪婪指数返回分类"""
-        if fgi < 25:
-            return "极度恐惧"
-        elif fgi < 50:
-            return "恐惧"
-        elif fgi < 75:
-            return "贪婪"
+            except json.JSONDecodeError as e:
+                print("JSON 解析错误:", e)
+                return self._get_error_response(str(e))
         else:
-            return "极度贪婪"
+            return self._get_error_response("API 调用失败")
+    
+    def _get_error_response(self, error_msg: str) -> Dict[str, Any]:
+        """
+        返回错误响应
+        :param error_msg: 错误消息
+        :return: 错误响应字典
+        """
+        return {
+            "error": error_msg,
+            "price_range": "无法生成预测",
+            "support_level": "无法生成预测",
+            "resistance_level": "无法生成预测",
+            "bullish_probability": "0%",
+            "bearish_probability": "0%",
+            "driving_factors": ["AI分析失败", "请检查API密钥", "请检查网络连接"],
+            "risks": ["AI分析失败风险", "数据获取失败风险", "模型响应异常风险"],
+            "trading_advice": "谨慎操作，等待系统恢复正常",
+            "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+
+AIAnalyzer = GeminiAIAnalyzer
