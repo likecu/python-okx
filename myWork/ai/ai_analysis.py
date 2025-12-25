@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 import random
 from typing import Dict, Any
-import google.genai as genai
+import requests
 from gemini_config import GEMINI_API_KEYS
 
 
@@ -14,25 +14,13 @@ class GeminiAIAnalyzer:
         """
         self.current_key_index = random.randint(0, len(GEMINI_API_KEYS) - 1)
         self.api_key = GEMINI_API_KEYS[self.current_key_index]
-        self.client = genai.Client(api_key=self.api_key)
         
         self.model_priority = [
-            "gemma-3-27b-it",
-            "gemma-3-12b-it",
-            "gemini-2.5-flash-lite",
             "gemini-2.5-flash",
-            "gemma-3-2b-it",
-            "gemma-3-9b-it",
-            "gemini-2-27b-it",
-            "gemini-2-9b-it",
-            "gemma-1.1-7b-it",
-            "gemini-1-7b-it",
-            "gemini-2-2b-it",
-            "gemini-1.1-2b-it",
-            "gemini-1-2b-it",
-            "gemini-nano",
-            "gemini-2.5-pro",
+            "gemini-2.5-flash-lite",
+            "gemini-1.5-flash",
             "gemini-1.5-pro",
+            "gemini-2.5-pro",
             "gemini-ultra",
             "gemini-experimental"
         ]
@@ -47,7 +35,7 @@ class GeminiAIAnalyzer:
         """
         for model_name in self.model_priority:
             return model_name
-        return "gemma-3-27b-it"
+        return "gemini-2.5-flash"
     
     def ask_question(self, question):
         """
@@ -63,18 +51,50 @@ class GeminiAIAnalyzer:
         
         while current_attempt < max_attempts:
             try:
-                contents = [question]
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
                 
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=contents
-                )
-                
-                return {
-                    "success": True,
-                    "response": response.text,
-                    "model": self.model_name
+                headers = {
+                    "Content-Type": "application/json"
                 }
+                
+                data = {
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": question}
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.7,
+                        "topK": 40,
+                        "topP": 0.95,
+                        "maxOutputTokens": 8192
+                    }
+                }
+                
+                response = requests.post(url, headers=headers, json=data, timeout=60)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if "candidates" in result and len(result["candidates"]) > 0:
+                        text = result["candidates"][0]["content"]["parts"][0]["text"]
+                        return {
+                            "success": True,
+                            "response": text,
+                            "model": self.model_name
+                        }
+                    else:
+                        print(f"API 返回格式异常: {result}")
+                        return None
+                else:
+                    error_msg = response.text
+                    print(f"API 请求失败: {response.status_code}, {error_msg}")
+                    
+                    if "quota exceeded" in error_msg.lower() or "429" in error_msg or response.status_code == 429:
+                        raise Exception("quota exceeded")
+                    else:
+                        return None
                 
             except Exception as e:
                 error_msg = str(e)
@@ -87,7 +107,6 @@ class GeminiAIAnalyzer:
                     if len(GEMINI_API_KEYS) > 1:
                         self.current_key_index = (self.current_key_index + 1) % len(GEMINI_API_KEYS)
                         self.api_key = GEMINI_API_KEYS[self.current_key_index]
-                        self.client = genai.Client(api_key=self.api_key)
                         print(f"已切换到新 API 密钥: {self.api_key[:10]}...")
                     
                     if self.model_name in self.model_priority:
