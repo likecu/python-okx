@@ -1,0 +1,90 @@
+{
+  "trading_pairs": [
+    {
+      "symbol": "BTC-USDT",
+      "name": "Bitcoin",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "ETH-USDT",
+      "name": "Ethereum",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "BNB-USDT",
+      "name": "Binance Coin",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "OKB-USDT",
+      "name": "OKEx Blockchain",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "SOL-USDT",
+      "name": "Solana",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "XRP-USDT",
+      "name": "Ripple",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "ADA-USDT",
+      "name": "Cardano",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "DOGE-USDT",
+      "name": "Dogecoin",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "AVAX-USDT",
+      "name": "Avalanche",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    },
+    {
+      "symbol": "DOT-USDT",
+      "name": "Polkadot",
+      "enabled": true,
+      "time_range_days": 730,
+      "bar": "15m"
+    }
+  ],
+  "api_config": {
+    "base_url": "https://www.okx.com",
+    "limit": 100,
+    "max_retries": 5,
+    "retry_delay": 5,
+    "random_delay": 3
+  },
+  "database_config": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "!A33b3e561fec",
+    "database": "okx_data",
+    "charset": "utf8mb4",
+    "table_name": "sorted_history_15m"
+  }
+}

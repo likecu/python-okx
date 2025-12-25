@@ -8,44 +8,29 @@ import os
 import json
 import random
 import pymysql
-from dotenv import load_dotenv
 from tqdm import tqdm
 
-# ======================
-# 配置参数
-# ======================
-CONFIG = {
-    "API_URL": "https://www.okx.com",  # OKX API base URL
-    "INST_ID": "BTC-USDT",  # trading pair
-    "BAR": "15m",  # time granularity (1s/1m/3m/5m/15m/30m/1H/2H/4H/6H/12H/1D etc)
-    "LIMIT": 100,  # per page data count (max 100)
-    "TIME_RANGE_DAYS": 730,  # time range (days) - 2 years of 15min data
-    "MAX_DATA_LIMIT": 10000000,  # max data limit
-    "SAVE_PATH": "./",  # data save path (with trailing /)
-    "TEMP_FILE": "temp_history_15m.csv",  # temp data file name
-    "FINAL_FILE": "sorted_history_15m.csv",  # final sorted file name
-    "STATE_FILE": "download_state_15m.json",  # state save file name
-    "MAX_RETRIES": 5,  # API max retry count
-    "RETRY_DELAY": 5,  # retry delay seconds (base value)
-    "RANDOM_DELAY": 3,  # random delay upper limit (avoid request storm)
-    "MYSQL_TABLE": "sorted_history_15m"  # MySQL table name
-}
 
-# 数据库连接参数
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '!A33b3e561fec',
-    'database': 'okx_data',
-    'charset': 'utf8mb4'
-}
+def load_config():
+    """加载配置文件
 
-# 全局数据库连接对象
-connection = None
+    返回:
+        dict: 配置字典
+    """
+    config_path = os.path.join(os.path.dirname(__file__), 'config/trading_pairs.json')
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 
-def create_connection():
-    """创建与MySQL数据库的持久化连接"""
+def create_connection(db_config):
+    """创建与MySQL数据库的持久化连接
+
+    参数:
+        db_config: 数据库配置字典
+
+    返回:
+        pymysql.Connection: 数据库连接对象，失败返回None
+    """
     global connection
     try:
         if connection and connection.open:
@@ -55,14 +40,14 @@ def create_connection():
 
         if not connection:
             connection = pymysql.connect(
-                host=DB_CONFIG['host'],
-                port=3306,
-                user=DB_CONFIG['user'],
-                password=DB_CONFIG['password'],
-                database=DB_CONFIG['database'],
-                charset=DB_CONFIG['charset'],
+                host=db_config['host'],
+                port=db_config.get('port', 3306),
+                user=db_config['user'],
+                password=db_config['password'],
+                database=db_config['database'],
+                charset=db_config['charset'],
                 cursorclass=pymysql.cursors.DictCursor,
-                autocommit=False  # manual transaction management
+                autocommit=False
             )
         return connection
     except Exception as e:
@@ -70,15 +55,22 @@ def create_connection():
         return None
 
 
-def create_table_if_not_exists():
-    """Create table if not exists"""
-    connection = create_connection()
-    if not connection:
+def create_table_if_not_exists(table_name, db_config):
+    """创建表（如果不存在）
+
+    参数:
+        table_name: 表名
+        db_config: 数据库配置字典
+
+    返回:
+        bool: 是否成功
+    """
+    conn = create_connection(db_config)
+    if not conn:
         return False
 
     try:
-        with connection.cursor() as cursor:
-            # Create table SQL statement
+        with conn.cursor() as cursor:
             sql = """
             CREATE TABLE IF NOT EXISTS %s (
                 ts DATETIME NOT NULL,
@@ -91,31 +83,39 @@ def create_table_if_not_exists():
                 vol_ccy_quote DECIMAL(30,15),
                 confirm VARCHAR(10),
                 currency VARCHAR(20),
-                PRIMARY KEY (ts)
+                PRIMARY KEY (ts, currency)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """ % CONFIG['MYSQL_TABLE']
+            """ % table_name
             cursor.execute(sql)
-        # Don't close connection, keep persistent
-        print("Table %s is ready" % CONFIG['MYSQL_TABLE'])
+        print("Table %s is ready" % table_name)
         return True
     except Exception as e:
         print("Failed to create table: %s" % e)
         return False
 
 
-def save_to_mysql(df):
-    """Save DataFrame to MySQL table"""
-    connection = create_connection()
-    if not connection:
+def save_to_mysql(df, table_name, currency, db_config):
+    """保存DataFrame到MySQL表
+
+    参数:
+        df: 包含K线数据的DataFrame
+        table_name: 表名
+        currency: 币种标识
+        db_config: 数据库配置字典
+
+    返回:
+        bool: 是否成功
+    """
+    conn = create_connection(db_config)
+    if not conn:
         return False
 
     try:
-        with connection.cursor() as cursor:
-            # Prepare SQL statement
+        with conn.cursor() as cursor:
             sql = """
-            INSERT INTO %s 
-            (ts, open, high, low, close, volume, vol_ccy, vol_ccy_quote, confirm,currency)
-            VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s,%%s)
+            INSERT INTO %s
+            (ts, open, high, low, close, volume, vol_ccy, vol_ccy_quote, confirm, currency)
+            VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s)
             ON DUPLICATE KEY UPDATE
             open = VALUES(open),
             high = VALUES(high),
@@ -124,11 +124,9 @@ def save_to_mysql(df):
             volume = VALUES(volume),
             vol_ccy = VALUES(vol_ccy),
             vol_ccy_quote = VALUES(vol_ccy_quote),
-            confirm = VALUES(confirm),
-            currency = VALUES(currency)
-            """ % CONFIG['MYSQL_TABLE']
+            confirm = VALUES(confirm)
+            """ % table_name
 
-            # Prepare data
             data = []
             for _, row in df.iterrows():
                 data.append((
@@ -141,83 +139,90 @@ def save_to_mysql(df):
                     row['vol_ccy'],
                     row['vol_ccy_quote'],
                     row['confirm'],
-                    CONFIG['INST_ID']
+                    currency
                 ))
 
-            # Batch insert data
             cursor.executemany(sql, data)
-        # Commit transaction, but don't close connection
-        connection.commit()
-        print("Successfully wrote %d records to MySQL table %s" % (len(df), CONFIG['MYSQL_TABLE']))
+        conn.commit()
+        print("Successfully wrote %d records to MySQL table %s (currency: %s)" % (len(df), table_name, currency))
         return True
     except Exception as e:
         print("Failed to write to MySQL: %s" % e)
-        connection.rollback()  # Rollback transaction on error
+        conn.rollback()
         return False
 
 
+def load_state(state_file_path):
+    """加载保存的状态
 
+    参数:
+        state_file_path: 状态文件路径
 
-
-# ======================
-# Load saved state
-# ======================
-def load_state():
-    state_path = CONFIG["SAVE_PATH"] + CONFIG["STATE_FILE"]
-    if os.path.exists(state_path):
+    返回:
+        dict: 状态字典，无状态返回None
+    """
+    if os.path.exists(state_file_path):
         try:
-            with open(state_path, 'r') as f:
+            with open(state_file_path, 'r') as f:
                 return json.load(f)
         except Exception as e:
             print("Failed to load state file: %s, will restart download" % e)
     return None
 
 
-# ======================
-# Save current state
-# ======================
-def save_state(state):
-    state_path = CONFIG["SAVE_PATH"] + CONFIG["STATE_FILE"]
+def save_state(state, state_file_path):
+    """保存当前状态
+
+    参数:
+        state: 状态字典
+        state_file_path: 状态文件路径
+    """
     try:
-        with open(state_path, 'w') as f:
+        with open(state_file_path, 'w') as f:
             json.dump(state, f)
     except Exception as e:
         print("Failed to save state file: %s" % e)
 
 
-# ======================
-# API request with retry mechanism
-# ======================
-def fetch_data_with_retry(after_ts):
+def fetch_data_with_retry(after_ts, inst_id, bar, limit, api_url, max_retries, retry_delay, random_delay):
+    """带重试机制的API请求
+
+    参数:
+        after_ts: 起始时间戳
+        inst_id: 交易对标识
+        bar: K线周期
+        limit: 获取数据条数
+        api_url: API基础URL
+        max_retries: 最大重试次数
+        retry_delay: 重试延迟基数
+        random_delay: 随机延迟上限
+
+    返回:
+        dict: API响应数据
+    """
     retries = 0
-    while retries < CONFIG["MAX_RETRIES"]:
+    while retries < max_retries:
         try:
-            # Prepare API request URL and parameters
-            url = "%s/api/v5/market/history-candles" % CONFIG["API_URL"]
+            url = "%s/api/v5/market/history-candles" % api_url
             params = {
-                "instId": CONFIG["INST_ID"],
+                "instId": inst_id,
                 "after": str(after_ts),
-                "bar": CONFIG["BAR"],
-                "limit": str(CONFIG["LIMIT"])
+                "bar": bar,
+                "limit": str(limit)
             }
-            
-            # Make API request
+
             response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()  # Raise HTTPError for bad responses
-            
-            # Parse JSON response
+            response.raise_for_status()
+
             response_data = response.json()
 
-            # Check API response status
             if response_data["code"] != "0":
                 error_msg = "API request failed (Code: %s): %s" % (response_data['code'], response_data['msg'])
 
-                # Special handling for timeout error
                 if response_data["code"] == "51054":
-                    print("Request timeout, retrying (%d/%d)..." % (retries + 1, CONFIG["MAX_RETRIES"]))
+                    print("Request timeout, retrying (%d/%d)..." % (retries + 1, max_retries))
                     retries += 1
-                    # Exponential backoff strategy
-                    delay = CONFIG["RETRY_DELAY"] * (2 ** retries) + random.uniform(0, CONFIG["RANDOM_DELAY"])
+                    delay = retry_delay * (2 ** retries) + random.uniform(0, random_delay)
                     print("Waiting %.2f seconds before retry..." % delay)
                     time.sleep(delay)
                     continue
@@ -229,58 +234,70 @@ def fetch_data_with_retry(after_ts):
         except Exception as e:
             print("API request exception: %s" % str(e))
             retries += 1
-            if retries < CONFIG["MAX_RETRIES"]:
-                delay = CONFIG["RETRY_DELAY"] * (2 ** retries) + random.uniform(0, CONFIG["RANDOM_DELAY"])
-                print("Waiting %.2f seconds before retry (%d/%d)..." % (delay, retries, CONFIG["MAX_RETRIES"]))
+            if retries < max_retries:
+                delay = retry_delay * (2 ** retries) + random.uniform(0, random_delay)
+                print("Waiting %.2f seconds before retry (%d/%d)..." % (delay, retries, max_retries))
                 time.sleep(delay)
             else:
                 raise Exception("Reached maximum retry count, download interrupted")
 
 
-# ======================
-# Main data fetch program
-# ======================
-def main():
+def download_single_currency(currency_config, db_config, api_config, table_name, save_path):
+    """下载单个币种的历史数据
+
+    参数:
+        currency_config: 币种配置字典
+        db_config: 数据库配置字典
+        api_config: API配置字典
+        table_name: 表名
+        save_path: 保存路径
+
+    返回:
+        bool: 是否成功
+    """
     global connection
     try:
-        # Create save directory
-        os.makedirs(CONFIG["SAVE_PATH"], exist_ok=True)
+        inst_id = currency_config['symbol']
+        bar = currency_config.get('bar', '15m')
+        time_range_days = currency_config.get('time_range_days', 730)
 
-        # Ensure MySQL table exists
-        if not create_table_if_not_exists():
-            print("Cannot create MySQL table, program exit")
-            return
+        state_file_path = os.path.join(save_path, "download_state_%s.json" % inst_id.replace('-', '_'))
 
-        # Load previous download state
-        state = load_state()
+        print("\n" + "=" * 60)
+        print("开始下载 %s (%s) 历史数据" % (currency_config['name'], inst_id))
+        print("=" * 60)
+
+        os.makedirs(save_path, exist_ok=True)
+
+        if not create_table_if_not_exists(table_name, db_config):
+            print("Cannot create MySQL table, skip %s" % inst_id)
+            return False
+
+        state = load_state(state_file_path)
 
         if state:
-            print("Detected previous download progress, continuing download...")
+            print("检测到之前的下载进度，继续下载...")
             current_after_ts = state["current_after_ts"]
             total_records = state["total_records"]
             last_saved_time = datetime.datetime.fromtimestamp(state["last_saved_time"] / 1000)
-            print("Last saved time: %s" % last_saved_time.strftime('%Y-%m-%d %H:%M:%S'))
-            print("Downloaded records: %d" % total_records)
+            print("上次保存时间: %s" % last_saved_time.strftime('%Y-%m-%d %H:%M:%S'))
+            print("已下载记录数: %d" % total_records)
         else:
-            # Calculate new time range
             end_time = datetime.datetime.now()
-            start_time = end_time - datetime.timedelta(days=CONFIG["TIME_RANGE_DAYS"])
+            start_time = end_time - datetime.timedelta(days=time_range_days)
             current_after_ts = int(end_time.timestamp() * 1000)
             total_records = 0
 
-            print("Start new download of %s %s K-line data (last %d days)" % (CONFIG['INST_ID'], CONFIG['BAR'], CONFIG['TIME_RANGE_DAYS']))
-            print(
-                "Target time range: %s to %s" % (start_time.strftime('%Y-%m-%d %H:%M:%S'), end_time.strftime('%Y-%m-%d %H:%M:%S')))
+            print("开始下载 %s %s K线数据 (最近 %d 天)" % (inst_id, bar, time_range_days))
+            print("目标时间范围: %s 到 %s" % (start_time.strftime('%Y-%m-%d %H:%M:%S'), end_time.strftime('%Y-%m-%d %H:%M:%S')))
 
-        # Data fetch parameters
         request_count = 0
         start_time_window = time.time()
         batch_data = []
+        max_data_limit = 10000000
 
-        # Main data fetch loop
         while True:
             try:
-                # Handle API rate limit (20 requests/2 seconds)
                 request_count += 1
                 if request_count > 20:
                     elapsed = time.time() - start_time_window
@@ -289,88 +306,77 @@ def main():
                     request_count = 0
                     start_time_window = time.time()
 
-                # Make API request (with retry mechanism)
-                response = fetch_data_with_retry(current_after_ts)
+                response = fetch_data_with_retry(
+                    after_ts=current_after_ts,
+                    inst_id=inst_id,
+                    bar=bar,
+                    limit=api_config['limit'],
+                    api_url=api_config['base_url'],
+                    max_retries=api_config['max_retries'],
+                    retry_delay=api_config['retry_delay'],
+                    random_delay=api_config['random_delay']
+                )
 
                 page_data = response.get("data", [])
                 if not page_data:
-                    print("API returned empty data, no more historical data available")
+                    print("API返回空数据，没有更多历史数据")
                     break
 
-                # Parse data and add to batch (reverse order to make it chronological)
-                page_data_sorted = sorted(page_data, key=lambda x: int(x[0]))  # Sort by timestamp ascending
+                page_data_sorted = sorted(page_data, key=lambda x: int(x[0]))
                 batch_data.extend(page_data_sorted)
                 total_records += len(page_data)
 
-                # Get the oldest timestamp in current page (for next page request)
-                oldest_ts_in_page = int(page_data[-1][0])  # Original data is in reverse chronological order
-
-                # Print progress
+                oldest_ts_in_page = int(page_data[-1][0])
                 oldest_time = datetime.datetime.fromtimestamp(oldest_ts_in_page // 1000)
-                print(
-                    "Fetched %d records | Oldest data time: %s | Total records: %d" % (len(page_data), oldest_time.strftime('%Y-%m-%d %H:%M:%S'), total_records))
+                print("已获取 %d 条记录 | 最早数据时间: %s | 总记录数: %d" % (len(page_data), oldest_time.strftime('%Y-%m-%d %H:%M:%S'), total_records))
 
-                # Check if reached time range boundary
-                start_ts = int(
-                    (datetime.datetime.now() - datetime.timedelta(days=CONFIG["TIME_RANGE_DAYS"])).timestamp() * 1000)
+                start_ts = int((datetime.datetime.now() - datetime.timedelta(days=time_range_days)).timestamp() * 1000)
                 if oldest_ts_in_page <= start_ts:
-                    print("Reached start time of target time range")
+                    print("已达到目标时间范围的起始时间")
                     break
 
-                # Update after parameter for next page (subtract 1ms to avoid duplicate fetch)
                 current_after_ts = oldest_ts_in_page - 1
 
-                # Check if reached max data limit
-                if total_records >= CONFIG["MAX_DATA_LIMIT"]:
-                    print("Warning: Reached maximum data limit (%d records)" % CONFIG['MAX_DATA_LIMIT'])
+                if total_records >= max_data_limit:
+                    print("警告：已达到最大数据限制 (%d 条记录)" % max_data_limit)
                     break
 
-                # Save data every 1000 records
                 if len(batch_data) >= 1000:
-                    # Process and save data
                     df = pd.DataFrame(
                         batch_data,
                         columns=["ts", "open", "high", "low", "close", "volume", "vol_ccy", "vol_ccy_quote", "confirm"]
                     )
-                    df["ts"] = pd.to_datetime(df["ts"].astype(int), unit="ms")  # Convert timestamp to datetime
-
-                    # Ensure data is in chronological order
+                    df["ts"] = pd.to_datetime(df["ts"].astype(int), unit="ms")
                     df = df.sort_values("ts").reset_index(drop=True)
 
-                    # Save to MySQL table
-                    if save_to_mysql(df):
-                        print("Successfully saved %d records to MySQL table" % len(batch_data))
+                    if save_to_mysql(df, table_name, inst_id, db_config):
+                        print("成功保存 %d 条记录到MySQL表" % len(batch_data))
 
-                        # Save current state
                         state = {
                             "current_after_ts": current_after_ts,
                             "total_records": total_records,
                             "last_saved_time": current_after_ts
                         }
-                        save_state(state)
+                        save_state(state, state_file_path)
 
-                        # Clear batch data
                         batch_data = []
                     else:
-                        print("Failed to save data to MySQL, program exit")
-                        return
+                        print("保存数据到MySQL失败，退出")
+                        return False
 
-                # Safe interval (avoid request storm)
                 time.sleep(0.1)
 
             except Exception as e:
-                print("Exception occurred: %s" % str(e))
-                print("Saving current state and exiting...")
+                print("发生异常: %s" % str(e))
+                print("保存当前状态并退出...")
 
-                # Save current state
                 state = {
                     "current_after_ts": current_after_ts,
                     "total_records": total_records,
                     "last_saved_time": current_after_ts
                 }
-                save_state(state)
+                save_state(state, state_file_path)
 
-                # Save remaining batch data
                 if batch_data:
                     df = pd.DataFrame(
                         batch_data,
@@ -379,48 +385,87 @@ def main():
                     df["ts"] = pd.to_datetime(df["ts"].astype(int), unit="ms")
                     df = df.sort_values("ts").reset_index(drop=True)
 
-                    if save_to_mysql(df):
-                        print("Successfully saved remaining %d records to MySQL table" % len(batch_data))
+                    if save_to_mysql(df, table_name, inst_id, db_config):
+                        print("成功保存剩余 %d 条记录到MySQL表" % len(batch_data))
                     else:
-                        print("Failed to save remaining data to MySQL")
+                        print("保存剩余数据到MySQL失败")
 
-                print("Program paused. You can run it again at any time to continue downloading.")
-                return
+                print("程序暂停。可以随时重新运行以继续下载。")
+                return False
 
-        # Process remaining data
         if batch_data:
             df = pd.DataFrame(
                 batch_data,
                 columns=["ts", "open", "high", "low", "close", "volume", "vol_ccy", "vol_ccy_quote", "confirm"]
             )
             df["ts"] = pd.to_datetime(df["ts"].astype(int), unit="ms")
-
-            # Ensure data is in chronological order
             df = df.sort_values("ts").reset_index(drop=True)
 
-            if save_to_mysql(df):
-                print("Successfully saved remaining %d records to MySQL table" % len(batch_data))
+            if save_to_mysql(df, table_name, inst_id, db_config):
+                print("成功保存剩余 %d 条记录到MySQL表" % len(batch_data))
 
-                # Delete state file, indicating download completion
-                state_path = CONFIG["SAVE_PATH"] + CONFIG["STATE_FILE"]
-                if os.path.exists(state_path):
-                    os.remove(state_path)
-                    print("Deleted state file")
+                if os.path.exists(state_file_path):
+                    os.remove(state_file_path)
+                    print("已删除状态文件")
 
-                print("\nData has been completely saved to MySQL table: %s" % CONFIG['MYSQL_TABLE'])
-                print("Total records: %d" % total_records)
+                print("\n%s 数据已完全保存到MySQL表: %s" % (inst_id, table_name))
+                print("总记录数: %d" % total_records)
             else:
-                print("Failed to save remaining data to MySQL")
+                print("保存剩余数据到MySQL失败")
         else:
-            print("No remaining data to save")
-            print("\nData has been completely saved to MySQL table: %s" % CONFIG['MYSQL_TABLE'])
-            print("Total records: %d" % total_records)
+            print("没有剩余数据需要保存")
+            print("\n%s 数据已完全保存到MySQL表: %s" % (inst_id, table_name))
+            print("总记录数: %d" % total_records)
 
+        return True
+
+    except Exception as e:
+        print("下载 %s 数据时出错: %s" % (inst_id, str(e)))
+        return False
     finally:
-        # Close database connection when program ends
         if connection and connection.open:
             connection.close()
-            print("Closed database connection")
+
+
+def main():
+    """主函数：下载所有启用的币种历史数据"""
+    global connection
+    connection = None
+
+    try:
+        config = load_config()
+        db_config = config['database_config']
+        api_config = config['api_config']
+        table_name = db_config['table_name']
+        save_path = "./"
+
+        print("=" * 60)
+        print("多币种历史数据下载工具")
+        print("=" * 60)
+
+        enabled_pairs = [p for p in config['trading_pairs'] if p.get('enabled', True)]
+        print("\n启用的交易对数量: %d" % len(enabled_pairs))
+
+        success_count = 0
+        fail_count = 0
+
+        for currency_config in enabled_pairs:
+            if download_single_currency(currency_config, db_config, api_config, table_name, save_path):
+                success_count += 1
+            else:
+                fail_count += 1
+
+        print("\n" + "=" * 60)
+        print("下载完成！")
+        print("成功: %d, 失败: %d" % (success_count, fail_count))
+        print("=" * 60)
+
+    except Exception as e:
+        print("程序执行出错: %s" % str(e))
+    finally:
+        if connection and connection.open:
+            connection.close()
+            print("已关闭数据库连接")
 
 
 if __name__ == "__main__":

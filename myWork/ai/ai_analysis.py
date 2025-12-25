@@ -4,7 +4,7 @@ import json
 import random
 from typing import Dict, Any
 import requests
-from gemini_config import GEMINI_API_KEYS
+from .gemini_config import GEMINI_API_KEYS
 
 
 class GeminiAIAnalyzer:
