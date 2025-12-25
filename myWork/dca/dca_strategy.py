@@ -244,7 +244,7 @@ class DcaExeStrategy:
             seed = int(self.portfolio['last_trade_time'].timestamp())
             random.seed(seed)
             random_time_threshold = random.uniform(self.min_time_since_last_trade, self.max_time_since_last_trade)
-            print("当前选择的时间阈值", random_time_threshold, "小时，已过去", time_since_last_trade, "小时")
+            # print("Current selected time threshold", random_time_threshold, "hours, elapsed", time_since_last_trade, "hours")
         else:
             random_time_threshold = 0
 
