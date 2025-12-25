@@ -11,35 +11,134 @@ except ImportError:
     from gemini_config import GEMINI_API_KEYS
 
 
-class GeminiAIAnalyzer:
-    def __init__(self):
+class GeminiModelManager:
+    def __init__(self, db_manager=None):
         """
-        初始化 Gemini AI 分析器
+        初始化 Gemini 模型管理器
+        :param db_manager: 数据库管理器实例
         """
+        self.db_manager = db_manager
+        self.models = []
         self.current_key_index = random.randint(0, len(GEMINI_API_KEYS) - 1)
         self.api_key = GEMINI_API_KEYS[self.current_key_index]
         
-        self.model_priority = [
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
-            "gemini-2.5-pro",
-            "gemini-ultra",
-            "gemini-experimental"
-        ]
-        
-        self.model_name = self.select_best_model()
-        print(f"使用模型: {self.model_name}")
+        if db_manager:
+            self.load_models_from_db()
+        else:
+            self.load_default_models()
     
-    def select_best_model(self):
+    def load_models_from_db(self):
+        """
+        从数据库加载模型配置
+        """
+        if not self.db_manager or not self.db_manager.connect():
+            print("无法连接数据库，使用默认模型配置")
+            self.load_default_models()
+            return
+        
+        try:
+            with self.db_manager.connection.cursor() as cursor:
+                query = '''
+                SELECT model_name, model_type, priority, is_enabled, 
+                       rpm_limit, tpm_limit, rpd_limit, description
+                FROM gemini_models
+                WHERE is_enabled = 1
+                ORDER BY priority ASC
+                '''
+                cursor.execute(query)
+                results = cursor.fetchall()
+                
+                self.models = []
+                for row in results:
+                    self.models.append({
+                        'model_name': row['model_name'],
+                        'model_type': row['model_type'],
+                        'priority': row['priority'],
+                        'rpm_limit': row['rpm_limit'],
+                        'tpm_limit': row['tpm_limit'],
+                        'rpd_limit': row['rpd_limit'],
+                        'description': row['description']
+                    })
+                
+                print(f"从数据库加载了 {len(self.models)} 个模型配置")
+        except Exception as e:
+            print(f"从数据库加载模型配置失败: {e}")
+            self.load_default_models()
+        finally:
+            self.db_manager.disconnect()
+    
+    def load_default_models(self):
+        """
+        加载默认模型配置
+        """
+        self.models = [
+            {'model_name': 'gemini-2.5-flash', 'model_type': 'text_only', 'priority': 1},
+            {'model_name': 'gemini-2.5-flash-lite', 'model_type': 'text_only', 'priority': 2},
+            {'model_name': 'gemini-1.5-flash', 'model_type': 'image_supported', 'priority': 3},
+            {'model_name': 'gemini-1.5-pro', 'model_type': 'image_supported', 'priority': 4},
+            {'model_name': 'gemini-2.5-pro', 'model_type': 'text_only', 'priority': 5},
+            {'model_name': 'gemma-3-27b-it', 'model_type': 'text_only', 'priority': 6},
+            {'model_name': 'gemma-3-12b-it', 'model_type': 'text_only', 'priority': 7},
+            {'model_name': 'gemma-3-2b-it', 'model_type': 'text_only', 'priority': 8},
+            {'model_name': 'gemma-3-9b-it', 'model_type': 'text_only', 'priority': 9},
+            {'model_name': 'gemini-2-27b-it', 'model_type': 'text_only', 'priority': 10},
+            {'model_name': 'gemini-2-9b-it', 'model_type': 'text_only', 'priority': 11},
+            {'model_name': 'gemini-1.1-7b-it', 'model_type': 'text_only', 'priority': 12},
+            {'model_name': 'gemini-1-7b-it', 'model_type': 'text_only', 'priority': 13},
+            {'model_name': 'gemini-2-2b-it', 'model_type': 'text_only', 'priority': 14},
+            {'model_name': 'gemini-1.1-2b-it', 'model_type': 'text_only', 'priority': 15},
+            {'model_name': 'gemini-1-2b-it', 'model_type': 'text_only', 'priority': 16},
+            {'model_name': 'gemini-nano', 'model_type': 'text_only', 'priority': 17},
+            {'model_name': 'gemini-ultra', 'model_type': 'image_supported', 'priority': 18},
+            {'model_name': 'gemini-experimental', 'model_type': 'text_only', 'priority': 19}
+        ]
+        print(f"使用默认模型配置，共 {len(self.models)} 个模型")
+    
+    def select_best_model(self, task_type='text_only'):
         """
         根据优先级选择最优模型
+        :param task_type: 任务类型，可选值：text_only, image_supported, document_supported
         :return: 最优模型名称
         """
-        for model_name in self.model_priority:
-            return model_name
-        return "gemini-2.5-flash"
+        for model in self.models:
+            if task_type == 'text_only':
+                return model['model_name']
+            elif task_type == 'image_supported' and model['model_type'] in ['image_supported', 'document_supported']:
+                return model['model_name']
+            elif task_type == 'document_supported' and model['model_type'] == 'document_supported':
+                return model['model_name']
+        
+        return self.models[0]['model_name'] if self.models else 'gemini-2.5-flash'
+    
+    def get_available_models(self):
+        """
+        获取所有可用模型列表
+        :return: 模型列表
+        """
+        return self.models
+    
+    def switch_api_key(self):
+        """
+        切换到下一个 API 密钥
+        """
+        if len(GEMINI_API_KEYS) > 1:
+            self.current_key_index = (self.current_key_index + 1) % len(GEMINI_API_KEYS)
+            self.api_key = GEMINI_API_KEYS[self.current_key_index]
+            print(f"已切换到新 API 密钥: {self.api_key[:10]}...")
+            return True
+        return False
+
+
+class GeminiAIAnalyzer:
+    def __init__(self, db_manager=None):
+        """
+        初始化 Gemini AI 分析器
+        :param db_manager: 数据库管理器实例，用于加载模型配置
+        """
+        self.model_manager = GeminiModelManager(db_manager)
+        self.api_key = self.model_manager.api_key
+        self.model_name = self.model_manager.select_best_model(task_type='text_only')
+        print(f"使用模型: {self.model_name}")
     
     def ask_question(self, question):
         """
@@ -108,15 +207,14 @@ class GeminiAIAnalyzer:
                     print(f"模型 {self.model_name} 配额已用完，尝试切换模型或 API 密钥...")
                     current_attempt += 1
                     
-                    if len(GEMINI_API_KEYS) > 1:
-                        self.current_key_index = (self.current_key_index + 1) % len(GEMINI_API_KEYS)
-                        self.api_key = GEMINI_API_KEYS[self.current_key_index]
-                        print(f"已切换到新 API 密钥: {self.api_key[:10]}...")
+                    if self.model_manager.switch_api_key():
+                        self.api_key = self.model_manager.api_key
                     
-                    if self.model_name in self.model_priority:
-                        self.model_priority.remove(self.model_name)
+                    available_models = [m['model_name'] for m in self.model_manager.get_available_models()]
+                    if self.model_name in available_models:
+                        available_models.remove(self.model_name)
                     
-                    new_model = self.select_best_model()
+                    new_model = self.model_manager.select_best_model(task_type='text_only')
                     if new_model != self.model_name:
                         self.model_name = new_model
                         print(f"已切换到新模型: {self.model_name}")
