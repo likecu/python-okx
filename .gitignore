@@ -78,3 +78,4 @@ optimized_*_results_*.png
 grid_trading_results_*.png
 dca_optimization_results_*.csv
 test_file.txt
+myWork/ai/gemini_config.py
