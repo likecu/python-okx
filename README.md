@@ -107,12 +107,62 @@ bash -c "source /root/okx-env-3.8/bin/activate && python fetch_latest_price.py"
 
 存储DCA交易记录
 
+### api_keys 表
+
+存储API密钥管理信息：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| key_type | VARCHAR(50) | 密钥类型（如gemini、openai、okx等） |
+| key_name | VARCHAR(100) | 密钥名称 |
+| key_value | VARCHAR(255) | 密钥值 |
+| priority | INT | 优先级（数字越小优先级越高） |
+| is_enabled | TINYINT(1) | 是否启用（1=启用，0=禁用） |
+| rpm_limit | INT | 每分钟请求数限制 |
+| tpm_limit | INT | 每分钟令牌数限制 |
+| rpd_limit | INT | 每天请求数限制 |
+| daily_usage | INT | 今日使用次数 |
+| description | TEXT | 密钥描述 |
+
+## API密钥管理
+
+### 数据库表创建
+
+执行SQL脚本创建API密钥管理表：
+
+```bash
+# 连接到远程数据库后执行
+mysql -h 43.163.118.163 -u root -p okx_data < database/create_api_keys_table.sql
+mysql -h 43.163.118.163 -u root -p okx_data < database/init_api_keys.sql
+```
+
+### 环境变量配置
+
+在运行AI分析功能前，需要配置以下环境变量：
+
+```bash
+# Gemini API密钥
+export GEMINI_API_KEY_1="your-gemini-api-key-1"
+export GEMINI_API_KEY_2="your-gemini-api-key-2"
+
+# OpenAI API密钥（可选）
+export OPENAI_API_KEY="your-openai-api-key"
+```
+
+### 密钥加载优先级
+
+1. 优先从数据库加载启用的API密钥
+2. 如果数据库连接失败或无可用密钥，从环境变量加载
+3. 如果环境变量也未配置，使用内置的备用密钥（仅用于开发测试）
+
 ## 远程服务器信息
 
-- **IP地址**: YOUR_SERVER_IP
+- **IP地址**: YOUR_SERVER_IP (请替换为实际IP)
 - **工作目录**: /root/python-okx/python-okx
 - **Python虚拟环境**: /root/okx-env-3.8
-- **数据库密码**: YOUR_DB_PASSWORD
+- **数据库密码**: YOUR_DB_PASSWORD (请替换为实际密码)
+- **SSH密钥**: /Volumes/600g/app1/okx_api.pem (请妥善保管密钥文件)
 
 ## GitHub仓库
 

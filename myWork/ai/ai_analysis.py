@@ -26,17 +26,36 @@ class GeminiModelManager:
         else:
             self.load_default_models()
     
+    def _get_default_api_keys(self):
+        """
+        从环境变量获取默认API密钥
+        :return: API密钥列表
+        """
+        default_keys = []
+        gemini_key_1 = os.environ.get('GEMINI_API_KEY_1', '').strip()
+        gemini_key_2 = os.environ.get('GEMINI_API_KEY_2', '').strip()
+        
+        if gemini_key_1:
+            default_keys.append(gemini_key_1)
+        if gemini_key_2:
+            default_keys.append(gemini_key_2)
+            
+        return default_keys if default_keys else None
+    
     def load_api_keys(self):
         """
         从数据库加载API密钥
+        如果数据库连接失败，则从环境变量获取默认密钥
         """
         if not self.db_manager or not self.db_manager.connect():
-            print("无法连接数据库，使用默认API密钥配置")
-            # 使用默认密钥（为了向后兼容）
-            self.api_keys = [
-                "AIzaSyATTaWd3cGkhFoFbtBQUCL4ez5r1vVhJxI",
-                "AIzaSyBHZwljuV3ojIl7abOcemAeKX6LNZuzhOw"
-            ]
+            print("无法连接数据库，尝试从环境变量加载API密钥")
+            default_keys = self._get_default_api_keys()
+            if default_keys:
+                self.api_keys = default_keys
+                print(f"从环境变量加载了 {len(self.api_keys)} 个Gemini API密钥")
+            else:
+                print("警告：无法加载任何API密钥，请检查环境变量配置")
+                self.api_keys = []
         else:
             try:
                 with self.db_manager.connection.cursor() as cursor:
@@ -52,17 +71,21 @@ class GeminiModelManager:
                         self.api_keys = [row['key_value'] for row in results]
                         print(f"从数据库加载了 {len(self.api_keys)} 个Gemini API密钥")
                     else:
-                        print("数据库中没有找到可用的Gemini API密钥，使用默认配置")
-                        self.api_keys = [
-                            "AIzaSyATTaWd3cGkhFoFbtBQUCL4ez5r1vVhJxI",
-                            "AIzaSyBHZwljuV3ojIl7abOcemAeKX6LNZuzhOw"
-                        ]
+                        print("数据库中没有找到可用的Gemini API密钥，尝试从环境变量获取")
+                        default_keys = self._get_default_api_keys()
+                        if default_keys:
+                            self.api_keys = default_keys
+                        else:
+                            print("警告：无法加载任何API密钥")
+                            self.api_keys = []
             except Exception as e:
-                print(f"从数据库加载API密钥失败: {e}")
-                self.api_keys = [
-                    "AIzaSyATTaWd3cGkhFoFbtBQUCL4ez5r1vVhJxI",
-                    "AIzaSyBHZwljuV3ojIl7abOcemAeKX6LNZuzhOw"
-                ]
+                print(f"从数据库加载API密钥失败: {e}，尝试从环境变量获取")
+                default_keys = self._get_default_api_keys()
+                if default_keys:
+                    self.api_keys = default_keys
+                else:
+                    print("警告：无法加载任何API密钥")
+                    self.api_keys = []
             finally:
                 self.db_manager.disconnect()
         
