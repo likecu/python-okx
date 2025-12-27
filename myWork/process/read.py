@@ -127,7 +127,7 @@ def load_kline_from_db(currency='BTC-USDT', table_name='sorted_history_15m', db_
         df['ts'] = pd.to_datetime(df['ts'])
 
         if 'confirm' in df.columns:
-            df = df[df['confirm'] == 1].reset_index(drop=True)
+            df = df[df['confirm'] == '1'].reset_index(drop=True)
 
         df = df.rename(columns={
             'open': 'o', 'high': 'h', 'low': 'l',
@@ -198,7 +198,7 @@ def load_kline_from_db_by_time_range(currency='BTC-USDT', table_name='sorted_his
         df['ts'] = pd.to_datetime(df['ts'])
 
         if 'confirm' in df.columns:
-            df = df[df['confirm'] == 1].reset_index(drop=True)
+            df = df[df['confirm'] == '1'].reset_index(drop=True)
 
         df = df.rename(columns={
             'open': 'o', 'high': 'h', 'low': 'l',
