@@ -82,7 +82,7 @@
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "!A33b3e561fec",
+    "password": "YOUR_DB_PASSWORD",
     "database": "okx_data",
     "charset": "utf8mb4",
     "table_name": "sorted_history_15m"

@@ -109,10 +109,10 @@ bash -c "source /root/okx-env-3.8/bin/activate && python fetch_latest_price.py"
 
 ## 远程服务器信息
 
-- **IP地址**: 43.163.118.163
+- **IP地址**: YOUR_SERVER_IP
 - **工作目录**: /root/python-okx/python-okx
 - **Python虚拟环境**: /root/okx-env-3.8
-- **数据库密码**: !A33b3e561fec
+- **数据库密码**: YOUR_DB_PASSWORD
 
 ## GitHub仓库
 
@@ -127,7 +127,7 @@ pip install -r requirements.txt
 
 ## 注意事项
 
-1. 远程服务器使用SSH密钥登录: `/Volumes/600g/app1/okx_api.pem`
+1. 远程服务器使用SSH密钥登录: `/Volumes/600g/app1/okx_api.pem` (请妥善保管密钥文件)
 2. 执行Python脚本前需要激活虚拟环境
 3. 数据库操作使用pymysql库
 4. API请求有频率限制，注意控制请求速率

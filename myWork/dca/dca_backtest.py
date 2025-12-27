@@ -4,6 +4,7 @@
 import threading
 import time
 import datetime
+import os
 import pandas as pd
 import pymysql
 from dca_strategy import DcaExeStrategy
@@ -163,11 +164,11 @@ class DcaBacktester:
 
 def main():
     """Main function"""
-    # Database configuration
+    # 数据库配置（请使用环境变量配置）
     DB_CONFIG = {
-        'host': 'localhost',
+        'host': os.environ.get('DB_HOST', 'localhost'),
         'user': 'root',
-        'password': '!A33b3e561fec',
+        'password': os.environ.get('DB_PASSWORD', 'YOUR_DB_PASSWORD'),
         'database': 'okx_data'
     }
     

@@ -13,28 +13,23 @@ python_okx.egg-info/
 .settings
 .springBeans
 .sts4-cache
-
 ### IntelliJ IDEA ###
 .idea
 *.iws
 *.iml
 *.ipr
-
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
 !**/src/main/**/build/
 !**/src/test/**/build/
-
 ### VS Code ###
 .vscode/
 id_rsa*
 myWork/another/header.json
-
 ### Environment files ###
 .env
 .env1
@@ -43,40 +38,32 @@ myWork/another/header.json
 .env.*.local
 temp.env
 correct_env.txt
-
 ### Test files ###
 myWork/dca/test/
 myWork/test.py
-
 ### Image files ###
 *.png
 *.jpg
 *.jpeg
 *.gif
 *.bmp
-
 ### Log files ###
 *.log
 header_check.log
-
 ### CSV data files ###
 *.csv
 !requirements.txt
-
 ### Backtest files ###
 backtest_dca.py
 optimize_dca_params.py
 optimize_dca_params_silent.py
 validate_trade_times.py
-
 ### Temporary files ###
 .trae/
 pp.json
-
 ### Output files ###
 optimized_*_results_*.png
 grid_trading_results_*.png
 dca_optimization_results_*.csv
 test_file.txt
-myWork/ai/gemini_config.py
 myWork/ai/gemini_config.py

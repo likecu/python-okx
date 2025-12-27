@@ -5,11 +5,6 @@ import random
 from typing import Dict, Any
 import requests
 
-try:
-    from .gemini_config import GEMINI_API_KEYS
-except ImportError:
-    from gemini_config import GEMINI_API_KEYS
-
 
 class GeminiModelManager:
     def __init__(self, db_manager=None):
@@ -19,13 +14,62 @@ class GeminiModelManager:
         """
         self.db_manager = db_manager
         self.models = []
-        self.current_key_index = random.randint(0, len(GEMINI_API_KEYS) - 1)
-        self.api_key = GEMINI_API_KEYS[self.current_key_index]
+        self.api_keys = []
+        self.current_key_index = 0
+        self.api_key = None
+        
+        # 加载API密钥（从数据库或默认）
+        self.load_api_keys()
         
         if db_manager:
             self.load_models_from_db()
         else:
             self.load_default_models()
+    
+    def load_api_keys(self):
+        """
+        从数据库加载API密钥
+        """
+        if not self.db_manager or not self.db_manager.connect():
+            print("无法连接数据库，使用默认API密钥配置")
+            # 使用默认密钥（为了向后兼容）
+            self.api_keys = [
+                "AIzaSyATTaWd3cGkhFoFbtBQUCL4ez5r1vVhJxI",
+                "AIzaSyBHZwljuV3ojIl7abOcemAeKX6LNZuzhOw"
+            ]
+        else:
+            try:
+                with self.db_manager.connection.cursor() as cursor:
+                    query = """
+                    SELECT key_value FROM api_keys 
+                    WHERE key_type = 'gemini' AND is_enabled = 1 
+                    ORDER BY priority ASC
+                    """
+                    cursor.execute(query)
+                    results = cursor.fetchall()
+                    
+                    if results:
+                        self.api_keys = [row['key_value'] for row in results]
+                        print(f"从数据库加载了 {len(self.api_keys)} 个Gemini API密钥")
+                    else:
+                        print("数据库中没有找到可用的Gemini API密钥，使用默认配置")
+                        self.api_keys = [
+                            "AIzaSyATTaWd3cGkhFoFbtBQUCL4ez5r1vVhJxI",
+                            "AIzaSyBHZwljuV3ojIl7abOcemAeKX6LNZuzhOw"
+                        ]
+            except Exception as e:
+                print(f"从数据库加载API密钥失败: {e}")
+                self.api_keys = [
+                    "AIzaSyATTaWd3cGkhFoFbtBQUCL4ez5r1vVhJxI",
+                    "AIzaSyBHZwljuV3ojIl7abOcemAeKX6LNZuzhOw"
+                ]
+            finally:
+                self.db_manager.disconnect()
+        
+        # 初始化当前密钥
+        if self.api_keys:
+            self.current_key_index = random.randint(0, len(self.api_keys) - 1)
+            self.api_key = self.api_keys[self.current_key_index]
     
     def load_models_from_db(self):
         """
@@ -121,9 +165,9 @@ class GeminiModelManager:
         """
         切换到下一个 API 密钥
         """
-        if len(GEMINI_API_KEYS) > 1:
-            self.current_key_index = (self.current_key_index + 1) % len(GEMINI_API_KEYS)
-            self.api_key = GEMINI_API_KEYS[self.current_key_index]
+        if len(self.api_keys) > 1:
+            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+            self.api_key = self.api_keys[self.current_key_index]
             print(f"已切换到新 API 密钥: {self.api_key[:10]}...")
             return True
         return False

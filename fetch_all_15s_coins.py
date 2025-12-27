@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 批量下载15秒级别多币种历史数据工具
+兼容Python 2.7
 """
 
 import os
@@ -32,8 +33,8 @@ def fetch_all_15s_coins(save_path='./'):
     print("=" * 60)
     print("批量爬取所有币种的15秒级别历史数据")
     print("=" * 60)
-    print(f"启用的交易对数量: {len(enabled_pairs)}")
-    print(f"保存路径: {save_path}")
+    print("启用的交易对数量: %d" % len(enabled_pairs))
+    print("保存路径: %s" % save_path)
     print("=" * 60)
 
     results = {}
@@ -44,7 +45,7 @@ def fetch_all_15s_coins(save_path='./'):
         currency = currency_config['symbol']
         coin_name = currency_config['name']
 
-        print(f"\n[{i}/{len(enabled_pairs)}] 开始爬取 {coin_name} ({currency}) 的15秒级别数据...")
+        print("\n[%d/%d] 开始爬取 %s (%s) 的15秒级别数据..." % (i, len(enabled_pairs), coin_name, currency))
 
         try:
             success = download_15s_single_currency(
@@ -61,17 +62,17 @@ def fetch_all_15s_coins(save_path='./'):
                     'name': coin_name
                 }
                 success_count += 1
-                print(f"✓ {coin_name} ({currency}) 15秒级别数据爬取完成")
+                print("✓ %s (%s) 15秒级别数据爬取完成" % (coin_name, currency))
             else:
                 results[currency] = {
                     'status': 'failed',
                     'name': coin_name
                 }
                 fail_count += 1
-                print(f"✗ {coin_name} ({currency}) 15秒级别数据爬取失败")
+                print("✗ %s (%s) 15秒级别数据爬取失败" % (coin_name, currency))
 
         except Exception as e:
-            print(f"✗ {coin_name} ({currency}) 15秒级别数据爬取出错: {str(e)}")
+            print("✗ %s (%s) 15秒级别数据爬取出错: %s" % (coin_name, currency, str(e)))
             results[currency] = {
                 'status': 'error',
                 'name': coin_name,
@@ -81,7 +82,7 @@ def fetch_all_15s_coins(save_path='./'):
 
     print("\n" + "=" * 60)
     print("15秒级别批量爬取完成！")
-    print(f"成功: {success_count}, 失败: {fail_count}")
+    print("成功: %d, 失败: %d" % (success_count, fail_count))
     print("=" * 60)
 
     return results
